@@ -6,6 +6,91 @@ We are NOT considering Client authorization keys.
 
 This is extracted from Tor specification
 
+## 2.0 Public/private keypairs and crypto building blocks
+
+Extracted from https://spec.torproject.org/rend-spec/protocol-overview.html#imd-key-menagerie
+
+      Master (hidden service) identity key -- A master signing keypair
+        used as the identity for a hidden service.  This key is long
+        term and not used on its own to sign anything; it is only used
+        to generate blinded signing keys as described in [KEYBLIND]
+        and [SUBCRED]. The public key is encoded in the ".onion"
+        address according to [NAMING].
+        KP_hs_id, KS_hs_id.
+
+      Blinded signing key -- A keypair derived from the identity key,
+        used to sign descriptor signing keys. It changes periodically for
+        each service. Clients who know a 'credential' consisting of the
+        service's public identity key and an optional secret can derive
+        the public blinded identity key for a service.  This key is used
+        as an index in the DHT-like structure of the directory system
+        (see [SUBCRED]).
+        KP_hs_blind_id, KS_hs_blind_id.
+
+Cryptographic building blocks
+
+extracted from https://spec.torproject.org/rend-spec/overview.html#cryptography
+
+This specification uses the following cryptographic building blocks:
+
+      * A pseudorandom number generator backed by a strong entropy source.
+        The output of the PRNG should always be hashed before being posted on
+        the network to avoid leaking raw PRNG bytes to the network
+        (see [PRNG-REFS]).
+
+      * A stream cipher STREAM(iv, k) where iv is a nonce of length
+        S_IV_LEN bytes and k is a key of length S_KEY_LEN bytes.
+
+      * A public key signature system SIGN_KEYGEN()->seckey, pubkey;
+        SIGN_SIGN(seckey,msg)->sig; and SIGN_CHECK(pubkey, sig, msg) ->
+        { "OK", "BAD" }; where secret keys are of length SIGN_SECKEY_LEN
+        bytes, public keys are of length SIGN_PUBKEY_LEN bytes, and
+        signatures are of length SIGN_SIG_LEN bytes.
+
+        This signature system must also support key blinding operations
+        as discussed in appendix [KEYBLIND] and in section [SUBCRED]:
+        SIGN_BLIND_SECKEY(seckey, blind)->seckey2 and
+        SIGN_BLIND_PUBKEY(pubkey, blind)->pubkey2 .
+
+      * A public key agreement system "PK", providing
+        PK_KEYGEN()->seckey, pubkey; PK_VALID(pubkey) -> {"OK", "BAD"};
+        and PK_HANDSHAKE(seckey, pubkey)->output; where secret keys are
+        of length PK_SECKEY_LEN bytes, public keys are of length
+        PK_PUBKEY_LEN bytes, and the handshake produces outputs of
+        length PK_OUTPUT_LEN bytes.
+
+      * A cryptographic hash function H(d), which should be preimage and
+        collision resistant. It produces hashes of length HASH_LEN
+        bytes.
+
+      * A cryptographic message authentication code MAC(key,msg) that
+        produces outputs of length MAC_LEN bytes.
+
+      * A key derivation function KDF(message, n) that outputs n bytes.
+
+   As a first pass, I suggest:
+
+      * Instantiate STREAM with AES256-CTR.
+
+      * Instantiate SIGN with Ed25519 and the blinding protocol in
+        [KEYBLIND].
+
+      * Instantiate PK with Curve25519.
+
+      * Instantiate H with SHA3-256.
+
+      * Instantiate KDF with SHAKE-256.
+
+      * Instantiate MAC(key=k, message=m) with H(k_len | k | m),
+        where k_len is htonll(len(k)).
+
+When we need a particular MAC key length below, we choose MAC_KEY_LEN=32 (256 bits).
+
+For legacy purposes, we specify compatibility with older versions of the Tor introduction point and rendezvous point protocols. These used RSA1024, DH1024, AES128, and SHA1, as discussed in rend-spec.txt.
+
+As in [proposal 220], all signatures are generated not over strings themselves, but over those strings prefixed with a distinguishing value.
+        
+
 ## 2.1- Onion Address Generation
 
 Extracted from https://spec.torproject.org/rend-spec/encoding-onion-addresses.html
