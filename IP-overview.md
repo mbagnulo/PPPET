@@ -191,3 +191,54 @@ blinded public key and <version> is the protocol version which is "3" in this ca
 
 These requests must be made anonymously, on circuits not used for anything else.
 
+## ESTABLISH_INTRO protocol
+
+Extracted from https://spec.torproject.org/rend-spec/introduction-protocol.html#EST_INTRO
+
+When a hidden service is establishing a new introduction point, it sends an ESTABLISH_INTRO message with the following contents:
+
+     AUTH_KEY_TYPE    [1 byte]
+     AUTH_KEY_LEN     [2 bytes]
+     AUTH_KEY         [AUTH_KEY_LEN bytes]
+     N_EXTENSIONS     [1 byte]
+     N_EXTENSIONS times:
+        EXT_FIELD_TYPE [1 byte]
+        EXT_FIELD_LEN  [1 byte]
+        EXT_FIELD      [EXT_FIELD_LEN bytes]
+     HANDSHAKE_AUTH   [MAC_LEN bytes]
+     SIG_LEN          [2 bytes]
+     SIG              [SIG_LEN bytes]
+
+The AUTH_KEY_TYPE field indicates the type of the introduction point authentication key and the type of the MAC to use in HANDSHAKE_AUTH. Recognized types are:
+
+       [00, 01] -- Reserved for legacy introduction messages; see
+                   [LEGACY_EST_INTRO below]
+       [02] -- Ed25519; SHA3-256.
+
+The AUTH_KEY_LEN field determines the length of the AUTH_KEY field. The AUTH_KEY field contains the public introduction point authentication key, KP_hs_ipt_sid.
+
+The EXT_FIELD_TYPE, EXT_FIELD_LEN, EXT_FIELD entries are reserved for extensions to the introduction protocol. Extensions with unrecognized EXT_FIELD_TYPE values must be ignored. (EXT_FIELD_LEN may be zero, in which case EXT_FIELD is absent.)
+
+The following extensions are currently defined:
+EXT_FIELD_TYPE	Name
+[01]	DOS_PARAMS
+
+The HANDSHAKE_AUTH field contains the MAC of all earlier fields in the message using as its key the shared per-circuit material ("KH") generated during the circuit extension protocol; see tor-spec.txt section 5.2, "Setting circuit keys". It prevents replays of ESTABLISH_INTRO messages.
+
+SIG_LEN is the length of the signature.
+
+SIG is a signature, using AUTH_KEY, of all contents of the message, up to but not including SIG_LEN and SIG. These contents are prefixed with the string "Tor establish-intro cell v1".
+
+Upon receiving an ESTABLISH_INTRO message, a Tor node first decodes the key and the signature, and checks the signature. The node must reject the ESTABLISH_INTRO message and destroy the circuit in these cases:
+
+        * If the key type is unrecognized
+        * If the key is ill-formatted
+        * If the signature is incorrect
+        * If the HANDSHAKE_AUTH value is incorrect
+
+        * If the circuit is already a rendezvous circuit.
+        * If the circuit is already an introduction circuit.
+          [TODO: some scalability designs fail there.]
+        * If the key is already in use by another circuit.
+
+Otherwise, the node must associate the key with the circuit, for use later in INTRODUCE1 messages.
