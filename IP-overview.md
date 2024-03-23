@@ -1,3 +1,4 @@
+
 ## Descriptor
 
 Extracted from https://spec.torproject.org/rend-spec/protocol-overview.html#imd-key-menagerie
@@ -191,7 +192,7 @@ blinded public key and <version> is the protocol version which is "3" in this ca
 
 These requests must be made anonymously, on circuits not used for anything else.
 
-## ESTABLISH_INTRO protocol
+## Setting up a new Introduction point ESTABLISH_INTRO protocol
 
 Extracted from https://spec.torproject.org/rend-spec/introduction-protocol.html#EST_INTRO
 
@@ -242,3 +243,217 @@ Upon receiving an ESTABLISH_INTRO message, a Tor node first decodes the key and 
         * If the key is already in use by another circuit.
 
 Otherwise, the node must associate the key with the circuit, for use later in INTRODUCE1 messages.
+
+
+## Contacting the HS server through the IP
+
+Extracted from https://spec.torproject.org/rend-spec/introduction-protocol.html#SEND_INTRO1
+
+Sending an INTRODUCE1 message to the introduction point
+
+In order to participate in the introduction protocol, a client must know the following:
+
+     * An introduction point for a service.
+     * The introduction authentication key for that introduction point.
+     * The introduction encryption key for that introduction point.
+
+The client sends an INTRODUCE1 message to the introduction point, containing an identifier for the service, 
+an identifier for the encryption key that the client intends to use, and an opaque blob to be relayed to the hidden service host.
+
+In reply, the introduction point sends an INTRODUCE_ACK message back to the client, 
+either informing it that its request has been delivered, or that its request will not succeed.
+
+### Extensible INTRODUCE1 message format
+
+When a client is connecting to an introduction point, INTRODUCE1 messages should be of the form:
+
+     LEGACY_KEY_ID   [20 bytes]
+     AUTH_KEY_TYPE   [1 byte]
+     AUTH_KEY_LEN    [2 bytes]
+     AUTH_KEY        [AUTH_KEY_LEN bytes]
+     N_EXTENSIONS    [1 byte]
+     N_EXTENSIONS times:
+       EXT_FIELD_TYPE [1 byte]
+       EXT_FIELD_LEN  [1 byte]
+       EXT_FIELD      [EXT_FIELD_LEN bytes]
+     ENCRYPTED        [Up to end of relay message body]
+
+The ENCRYPTED field is described in the [PROCESS_INTRO2] section.
+
+AUTH_KEY_TYPE is defined as in [EST_INTRO]. Currently, the only value of AUTH_KEY_TYPE for this message is an Ed25519 public key [02].
+
+The LEGACY_KEY_ID field is used to distinguish between legacy and new style INTRODUCE1 messages. In new style INTRODUCE1 messages, LEGACY_KEY_ID is 20 zero bytes. Upon receiving an INTRODUCE1 messages, the introduction point checks the LEGACY_KEY_ID field. If LEGACY_KEY_ID is non-zero, the INTRODUCE1 message should be handled as a legacy INTRODUCE1 message by the intro point.
+
+Upon receiving a INTRODUCE1 message, the introduction point checks whether AUTH_KEY matches the introduction point authentication key for an active introduction circuit. If so, the introduction point sends an INTRODUCE2 message with exactly the same contents to the service, and sends an INTRODUCE_ACK response to the client.
+
+INTRODUCE_ACK message format.
+
+An INTRODUCE_ACK message has the following fields:
+
+     STATUS       [2 bytes]
+     N_EXTENSIONS [1 bytes]
+     N_EXTENSIONS times:
+       EXT_FIELD_TYPE [1 byte]
+       EXT_FIELD_LEN  [1 byte]
+       EXT_FIELD      [EXT_FIELD_LEN bytes]
+
+   Recognized status values are:
+
+     [00 00] -- Success: message relayed to hidden service host.
+     [00 01] -- Failure: service ID not recognized
+     [00 02] -- Bad message format
+     [00 03] -- Can't relay message to service
+
+
+Processing an INTRODUCE2 message at the hidden service.
+
+Upon receiving an INTRODUCE2 message, the hidden service host checks whether the AUTH_KEY or LEGACY_KEY_ID field matches the keys for this introduction circuit.
+
+It decrypts the ENCRYPTED field, establishes a shared key with the client, and authenticates the whole contents of the message as having been unmodified since they left the client. There may be multiple ways of decrypting the ENCRYPTED field, depending on the chosen type of the encryption key. Requirements for an introduction handshake protocol are described in [INTRO-HANDSHAKE-REQS]. We specify one below in section [NTOR-WITH-EXTRA-DATA].
+
+The decrypted plaintext must have the form:
+
+      RENDEZVOUS_COOKIE                          [20 bytes]
+      N_EXTENSIONS                               [1 byte]
+      N_EXTENSIONS times:
+          EXT_FIELD_TYPE                         [1 byte]
+          EXT_FIELD_LEN                          [1 byte]
+          EXT_FIELD                              [EXT_FIELD_LEN bytes]
+      ONION_KEY_TYPE                             [1 bytes]
+      ONION_KEY_LEN                              [2 bytes]
+      ONION_KEY                                  [ONION_KEY_LEN bytes]
+      NSPEC      (Number of link specifiers)     [1 byte]
+      NSPEC times:
+          LSTYPE (Link specifier type)           [1 byte]
+          LSLEN  (Link specifier length)         [1 byte]
+          LSPEC  (Link specifier)                [LSLEN bytes]
+      PAD        (optional padding)              [up to end of plaintext]
+
+Upon processing this plaintext, the hidden service makes sure that any required authentication is present in the extension fields, and then extends a rendezvous circuit to the node described in the LSPEC fields, using the ONION_KEY to complete the extension. As mentioned in [BUILDING-BLOCKS], the "TLS-over-TCP, IPv4" and "Legacy node identity" specifiers must be present.
+
+As of 0.4.1.1-alpha, clients include both IPv4 and IPv6 link specifiers in INTRODUCE1 messages. All available addresses SHOULD be included in the message, regardless of the address that the client actually used to extend to the rendezvous point.
+
+The hidden service should handle invalid or unrecognised link specifiers the same way as clients do in section 2.5.2.2. In particular, services SHOULD perform basic validity checks on link specifiers, and SHOULD NOT reject unrecognised link specifiers, to avoid information leaks. The list of link specifiers received here SHOULD either be rejected, or sent verbatim when extending to the rendezvous point, in the same order received.
+
+The service MAY reject the list of link specifiers if it is inconsistent with relay information from the directory, but SHOULD NOT modify it.
+
+The ONION_KEY_TYPE field is:
+
+[01] NTOR: ONION_KEY is 32 bytes long.
+
+The ONION_KEY field describes the onion key that must be used when extending to the rendezvous point. It must be of a type listed as supported in the hidden service descriptor.
+
+The PAD field should be filled with zeros; its size should be chosen so that the INTRODUCE2 message occupies a fixed maximum size, in order to hide the length of the encrypted data. (This maximum size is 490, since we assume that a future Tor implementations will implement proposal 340 and thus lower the number of bytes that can be contained in a single relay message.) Note also that current versions of Tor only pad the INTRODUCE2 message up to 246 bytes.
+
+Upon receiving a well-formed INTRODUCE2 message, the hidden service host will have:
+
+     * The information needed to connect to the client's chosen
+       rendezvous point.
+     * The second half of a handshake to authenticate and establish a
+       shared key with the hidden service client.
+     * A set of shared keys to use for end-to-end encryption.
+
+The same rules for multiplicity, ordering, and handling unknown types apply to the extension fields here as described [EST_INTRO] above.
+
+
+#### Introduce2 encryption
+
+Extracted from https://spec.torproject.org/rend-spec/introduction-protocol.html#INTRO-HANDSHAKE-REQS
+
+
+When decoding the encrypted information in an INTRODUCE2 message, a hidden service host must be able to:
+
+     * Decrypt additional information included in the INTRODUCE2 message,
+       to include the rendezvous token and the information needed to
+       extend to the rendezvous point.
+
+     * Establish a set of shared keys for use with the client.
+
+     * Authenticate that the message has not been modified since the client
+       generated it.
+
+
+Example encryption handshake: ntor with extra data
+       [NTOR-WITH-EXTRA-DATA]
+
+It behaves the same as the ntor handshake, except that, in addition to negotiating forward secure keys, it also provides a means for encrypting non-forward-secure data to the server (in this case, to the hidden service host) as part of the handshake.
+
+Notation here is as in section 5.1.4 of tor-spec.txt, which defines the ntor handshake.
+
+The PROTOID for this variant is "tor-hs-ntor-curve25519-sha3-256-1". We also use the following tweak values:
+
+      t_hsenc    = PROTOID | ":hs_key_extract"
+      t_hsverify = PROTOID | ":hs_verify"
+      t_hsmac    = PROTOID | ":hs_mac"
+      m_hsexpand = PROTOID | ":hs_key_expand"
+
+To make an INTRODUCE1 message, the client must know a public encryption key B for the hidden service on this introduction circuit. B = KP_hs_id????
+
+The client generates a single-use keypair:
+
+x,X = KEYGEN()
+
+and computes:
+
+             intro_secret_hs_input = EXP(B,x) | AUTH_KEY | X | B | PROTOID
+             info = m_hsexpand | N_hs_subcred
+             hs_keys = KDF(intro_secret_hs_input | t_hsenc | info, S_KEY_LEN+MAC_LEN)
+             ENC_KEY = hs_keys[0:S_KEY_LEN]
+             MAC_KEY = hs_keys[S_KEY_LEN:S_KEY_LEN+MAC_KEY_LEN]
+
+   and sends, as the ENCRYPTED part of the INTRODUCE1 message:
+
+          CLIENT_PK                [PK_PUBKEY_LEN bytes]
+          ENCRYPTED_DATA           [Padded to length of plaintext]
+          MAC                      [MAC_LEN bytes]
+
+Substituting those fields into the INTRODUCE1 message body format described in [FMT_INTRO1] above, we have
+
+            LEGACY_KEY_ID               [20 bytes]
+            AUTH_KEY_TYPE               [1 byte]
+            AUTH_KEY_LEN                [2 bytes]
+            AUTH_KEY                    [AUTH_KEY_LEN bytes]
+            N_EXTENSIONS                [1 bytes]
+            N_EXTENSIONS times:
+               EXT_FIELD_TYPE           [1 byte]
+               EXT_FIELD_LEN            [1 byte]
+               EXT_FIELD                [EXT_FIELD_LEN bytes]
+            ENCRYPTED:
+               CLIENT_PK                [PK_PUBKEY_LEN bytes]
+               ENCRYPTED_DATA           [Padded to length of plaintext]
+               MAC                      [MAC_LEN bytes]
+
+(This format is as documented in [FMT_INTRO1] above, except that here we describe how to build the ENCRYPTED portion.)
+
+Here, the encryption key plays the role of B in the regular ntor handshake, and the AUTH_KEY field plays the role of the node ID. The CLIENT_PK field is the public key X. The ENCRYPTED_DATA field is the message plaintext, encrypted with the symmetric key ENC_KEY. The MAC field is a MAC of all of the message from the AUTH_KEY through the end of ENCRYPTED_DATA, using the MAC_KEY value as its key.
+
+To process this format, the hidden service checks PK_VALID(CLIENT_PK) as necessary, and then computes ENC_KEY and MAC_KEY as the client did above, except using EXP(CLIENT_PK,b) in the calculation of intro_secret_hs_input. The service host then checks whether the MAC is correct. If it is invalid, it drops the message. Otherwise, it computes the plaintext by decrypting ENCRYPTED_DATA.
+
+The hidden service host now completes the service side of the extended ntor handshake, as described in tor-spec.txt section 5.1.4, with the modified PROTOID as given above. To be explicit, the hidden service host generates a keypair of y,Y = KEYGEN(), and uses its introduction point encryption key 'b' to compute:
+
+      intro_secret_hs_input = EXP(X,b) | AUTH_KEY | X | B | PROTOID
+      info = m_hsexpand | N_hs_subcred
+      hs_keys = KDF(intro_secret_hs_input | t_hsenc | info, S_KEY_LEN+MAC_LEN)
+      HS_DEC_KEY = hs_keys[0:S_KEY_LEN]
+      HS_MAC_KEY = hs_keys[S_KEY_LEN:S_KEY_LEN+MAC_KEY_LEN]
+
+      (The above are used to check the MAC and then decrypt the
+      encrypted data.)
+
+      rend_secret_hs_input = EXP(X,y) | EXP(X,b) | AUTH_KEY | B | X | Y | PROTOID
+      NTOR_KEY_SEED = MAC(rend_secret_hs_input, t_hsenc)
+      verify = MAC(rend_secret_hs_input, t_hsverify)
+      auth_input = verify | AUTH_KEY | B | Y | X | PROTOID | "Server"
+      AUTH_INPUT_MAC = MAC(auth_input, t_hsmac)
+
+      (The above are used to finish the ntor handshake.)
+
+   The server's handshake reply is:
+
+       SERVER_PK   Y                         [PK_PUBKEY_LEN bytes]
+       AUTH        AUTH_INPUT_MAC            [MAC_LEN bytes]
+
+These fields will be sent to the client in a RENDEZVOUS1 message using the HANDSHAKE_INFO element (see [JOIN_REND]).
+
+The hidden service host now also knows the keys generated by the handshake, which it will use to encrypt and authenticate data end-to-end between the client and the server. These keys are as computed in tor-spec.txt section 5.1.4, except that instead of using AES-128 and SHA1 for this hop, we use AES-256 and SHA3-256.
+
