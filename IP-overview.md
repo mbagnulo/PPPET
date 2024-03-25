@@ -187,7 +187,7 @@ Extracted from https://spec.torproject.org/rend-spec/deriving-keys.html#urls
 
 Hidden service descriptors conforming to this specification are uploaded with an HTTP POST request to 
 the URL /tor/hs/<version>/publish relative to the hidden service directory's root, and downloaded with an 
-HTTP GET request for the URL /tor/hs/<version>/<z> where <z> is a base64 encoding of the hidden service's 
+HTTP GET request for the URL /tor/hs/<version>/Z where z is a base64 encoding of the hidden service's 
 blinded public key and <version> is the protocol version which is "3" in this case.
 
 These requests must be made anonymously, on circuits not used for anything else.
