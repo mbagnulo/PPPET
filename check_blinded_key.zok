@@ -1,0 +1,66 @@
+import "./stdlib/hashes/sha3/256bit" as sha3;
+
+def main(u8[32] kp_hs_id, u8[8] period_num, u8[8] period_length){
+    
+    //"Derive temporary signing key\0" encoded with ASCII
+    u8[29] BLIND_STRING = [68, 101, 114, 105, 118, 101, 32, 116, 101, 109, 112, 111, 114, 97, 114, 121, 32, 115, 105, 103, 110, 105, 110, 103, 32, 107, 101, 121, 0];
+
+    //"(1511...2202, 4631...5960)" encoded with ASCII
+    u8[158] ED22519_BASEPOINT = [40, 49, 53, 49, 49, 50, 50, 50, 49, 51, 52, 57, 53, 51, 53, 52, 48, 48, 55, 55, 50, 53, 48, 49, 49, 53, 49, 52, 48, 57, 53, 56, 56, 53, 51, 49, 53, 49, 49, 52, 53, 52, 48, 49, 50, 54, 57, 51, 48, 52, 49, 56, 53, 55, 50, 48, 54, 48, 52, 54, 49, 49, 51, 50, 56, 51, 57, 52, 57, 56, 52, 55, 55, 54, 50, 50, 48, 50, 44, 32, 52, 54, 51, 49, 54, 56, 51, 53, 54, 57, 52, 57, 50, 54, 52, 55, 56, 49, 54, 57, 52, 50, 56, 51, 57, 52, 48, 48, 51, 52, 55, 53, 49, 54, 51, 49, 52, 49, 51, 48, 55, 57, 57, 51, 56, 54, 54, 50, 53, 54, 50, 50, 53, 54, 49, 53, 55, 56, 51, 48, 51, 51, 54, 48, 51, 49, 54, 53, 50, 53, 49, 56, 53, 53, 57, 54, 48, 41];
+
+    //"key-blind" encoded with ASCII
+    u8[9] KEYBLIND_STRING = [107, 101, 121, 45, 98, 108, 105, 110, 100];
+
+    // TODO: Implement optional secret (Necessary?)
+
+    u8[244] h = [...BLIND_STRING,...kp_hs_id,...ED22519_BASEPOINT, ...KEYBLIND_STRING, ...period_num, ...period_length];
+
+    //log("h is {}", h);
+    
+    u8[32] preimage = sha3(h);
+
+    log("H is {}", preimage);
+
+    // TODO: Implement clamping and public blinded key derivation (Kp_hs_blinded_id) via scalar multiplication
+}
+
+
+/*   The length of a "time period" is controlled by the consensus
+   parameter 'hsdir-interval', and is a number of minutes between 30 and
+   14400 (10 days). The default time period length is 1440 (one day).
+
+   Time periods start at the Unix epoch (Jan 1, 1970), and are computed by
+   taking the number of minutes since the epoch and dividing by the time
+   period. However, we want our time periods to start at a regular offset
+   from the SRV voting schedule, so  we subtract a "rotation time offset"
+   of 12 voting periods from the number of minutes since the epoch, before
+   dividing by the time period (effectively making "our" epoch start at Jan
+   1, 1970 12:00UTC when the voting period is 1 hour.)
+
+   Example: If the current time is 2016-04-13 11:15:01 UTC, making the seconds
+   since the epoch 1460546101, and the number of minutes since the epoch
+   24342435.  We then subtract the "rotation time offset" of 12*60 minutes from
+   the minutes since the epoch, to get 24341715. If the current time period
+   length is 1440 minutes, by doing the division we see that we are currently
+   in time period number 16903.
+*/
+
+/*
+// rend-spec-v3 appendix A.2
+// We generate our key blinding factor as
+//    h = H(BLIND_STRING | A | s | B | N)
+// Where:
+//    H is SHA3-256.
+//    A is this public key.
+//    BLIND_STRING = "Derive temporary signing key" | INT_1(0)
+//    s is an optional secret (not implemented here.)
+//    B is the ed25519 basepoint.
+//    N = "key-blind" || INT_8(period_num) || INT_8(period_length).
+
+    then clamp the blinding factor 'h' according to the ed25519 spec:
+
+      h[0] &= 248;
+      h[31] &= 63;
+      h[31] |= 64;
+
+*/
