@@ -12,13 +12,15 @@ template Main(){
     signal input kp_base_85[4][3]; // Kp_hs_id in base 2^85
     signal input period_number[8]; // period number as an array of 8 bytes
     signal input period_length[8]; // period length as an array of 8 bytes
+    // signal input blinded_key ¿bytes o bits?
 
     signal h[32];
     signal h_bits[256];
+    signal h_clamped[255];
     signal kp_bits_1[256];
     signal kp_bits_2[256];
 
-    component unpack = UnpackBytes(32); // Bytes (big endian) -> Bits (little endian)
+    component unpack = UnpackBytes(32); // Bytes -> Bits (little endian)
     component compress = PointCompress(); // P[4][3] -> Bits (little endian)
     component eq_arrays = IsEqualArrays(256);
 
@@ -61,8 +63,14 @@ template Main(){
     h_bits <== unpack.bits;
 
     // Perform clamping on h
-
+    component clamp = Clamping();
+    clamp.h <== h_bits;
+    h_clamped <== clamp.h_clamped;
+    
     // Perform scalar multiplication
+
+
+    // Compare scalar multiplication result with input blinded key
 
 
     

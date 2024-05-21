@@ -4,12 +4,30 @@ include "../lib/circomlib/comparators.circom";
 
 
 // Performs clamping to the blinding factor according to Ed25519 documentation
-// h[0] &= 248; -> h[0] AND 111111000
-// h[31] &= 63;
-// h[31] |= 64;
 template Clamping(){
     signal input h[256]; // h is in little endian
     signal output h_clamped[255];
+
+    component isz[255];
+
+    // Bits 1 (LSB), 2, 3 ==> 0 
+    for (var i = 0; i<3; i++){
+        isz[i] = IsZero();
+        h_clamped[i] <== 0;
+        isz[i].in <== h_clamped[i];
+        isz[i].out === 1;
+    }
+
+    // Copy bits
+    for (var i = 3; i < 254; i++){
+        isz[i] = IsZero();
+        h_clamped[i] <== h[i];
+        h[i] - h_clamped[i] ==> isz[i].in;
+        isz[i].out === 1;
+    }
+
+    // Bit 255 ==> 1
+    h_clamped[254] <== h[254] + 1 - h[254]*1; // OR 1
 }
 
 
