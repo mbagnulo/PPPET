@@ -1,6 +1,7 @@
 pragma circom 2.0.0;
 
 include "lib/ed25519_circom/pointcompress.circom";
+include "lib/ed25519_circom/scalarmul.circom";
 include "lib/hash_circuits/keccak/sha3_bytes.circom";
 include "lib/utils.circom";
 include "lib/circomlib/comparators.circom";
@@ -19,6 +20,8 @@ template Main(){
     signal h_clamped[255];
     signal kp_bits_1[256];
     signal kp_bits_2[256];
+    signal bkey_base_85[4][3];
+    signal bkey[256];
 
     component unpack = UnpackBytes(32); // Bytes -> Bits (little endian)
     component compress = PointCompress(); // P[4][3] -> Bits (little endian)
@@ -68,7 +71,14 @@ template Main(){
     h_clamped <== clamp.h_clamped;
     
     // Perform scalar multiplication
+    component scalarmul = ScalarMul();
+    scalarmul.s <== h_clamped;
+    scalarmul.P <== kp_base_85;
+    bkey_base_85 <== scalarmul.sP;
 
+    signal output test[4][3];
+
+    test <== bkey_base_85;
 
     // Compare scalar multiplication result with input blinded key
 
