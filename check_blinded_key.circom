@@ -9,11 +9,12 @@ include "lib/circomlib/comparators.circom";
 
 
 template Main(){
-    signal input kp_bytes[32]; // Kp_hs_id in bytes
+    signal input kp_bytes[32]; // Kp_hs_id in bytes (little endian)
     signal input kp_base_85[4][3]; // Kp_hs_id in base 2^85
-    signal input period_number[8]; // period number as an array of 8 bytes
+    signal input bkey_bytes[32]; // blinded key in bytes (little endian)
+    signal input period_number[8]; // period number as an array of 8 
     signal input period_length[8]; // period length as an array of 8 bytes
-    // signal input blinded_key ¿bytes o bits?
+    
 
     signal h[32];
     signal h_bits[256];
@@ -21,7 +22,6 @@ template Main(){
     signal kp_bits_1[256];
     signal kp_bits_2[256];
     signal bkey_base_85[4][3];
-    signal bkey[256];
 
     component unpack = UnpackBytes(32); // Bytes -> Bits (little endian)
     component compress = PointCompress(); // P[4][3] -> Bits (little endian)
@@ -63,7 +63,7 @@ template Main(){
 
     component unpack_2 = UnpackBytes(32);
     unpack_2.bytes <== h;
-    h_bits <== unpack.bits;
+    h_bits <== unpack_2.bits;
 
     // Perform clamping on h
     component clamp = Clamping();
@@ -76,15 +76,25 @@ template Main(){
     scalarmul.P <== kp_base_85;
     bkey_base_85 <== scalarmul.sP;
 
-    signal output test[4][3];
-
-    test <== bkey_base_85;
-
     // Compare scalar multiplication result with input blinded key
+    component unpack_3 = UnpackBytes(32);
+    component compress_2 = PointCompress();
+    signal bkey_bits_1[256];
+    signal bkey_bits_2[256];
 
+    compress_2.P <== bkey_base_85;
+    bkey_bits_1 <== compress_2.out;
+    
+    unpack_3.bytes <== bkey_bytes;
+    bkey_bits_2 <== unpack_3.bits;
 
+    // Commented for now
+    component eq_arrays_2 = IsEqualArrays(256);
+    eq_arrays_2.array1 <== bkey_bits_1;
+    eq_arrays_2.array2 <== bkey_bits_2;
+    
     
 
 }
 
-component main {public [period_number,period_length]}= Main();
+component main {public [bkey_bytes, period_number, period_length]}= Main();
