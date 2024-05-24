@@ -14,4 +14,20 @@ def to_bin(num, n):
 
     return n_bin
 
-print(2**7 + 2**6)
+# Transforms a bit sequence into an array of bytes.
+# Can be used to obtain the Circom inputs in the appropiate format
+# Input must be in little endian (99% sure)
+# Used to reverse UnpackBytes() output in Circom
+def bits_to_bytes_array(bit_sequence):
+    if len(bit_sequence) % 8 != 0:
+        raise ValueError("Length must be multiple of 8")
+    bit_sequence = bit_sequence[::-1]
+    bytes_list = []
+    for i in range(0, len(bit_sequence), 8):
+        byte_str = bit_sequence[i:i+8]
+        byte = int(byte_str, 2)
+        bytes_list.append(byte)
+
+    bytes_list.reverse()
+
+    return bytes_list
