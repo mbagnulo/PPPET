@@ -8,7 +8,7 @@ include "lib/circomlib/comparators.circom";
 
 
 
-template Main(){
+template CheckBlindedKey(){
     signal input kp_bytes[32]; // Kp_hs_id in bytes (little endian)
     signal input kp_base_85[4][3]; // Kp_hs_id in base 2^85
     signal input bkey_bytes[32]; // blinded key in bytes (little endian)
@@ -88,13 +88,9 @@ template Main(){
     unpack_3.bytes <== bkey_bytes;
     bkey_bits_2 <== unpack_3.bits;
 
-    // Commented for now
     component eq_arrays_2 = IsEqualArrays(256);
     eq_arrays_2.array1 <== bkey_bits_1;
     eq_arrays_2.array2 <== bkey_bits_2;
-    
-    
-
 }
 
-component main {public [bkey_bytes, period_number, period_length]}= Main();
+component main {public [bkey_bytes, period_number, period_length]}= CheckBlindedKey();
