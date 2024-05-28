@@ -14,14 +14,17 @@ def to_bin(num, n):
 
     return n_bin
 
-# Transforms a bit sequence into an array of bytes.
+# Transforms a bit sequence into an array of bytes (in Little Endian).
 # Can be used to obtain the Circom inputs in the appropiate format
-# Input must be in little endian (99% sure)
 # Used to reverse UnpackBytes() output in Circom
+# Input is assumed to be in little endian
 def bits_to_bytes_array(bit_sequence):
     if len(bit_sequence) % 8 != 0:
         raise ValueError("Length must be multiple of 8")
+    
+    # you can comment this next line if you want to use a big endian as input
     bit_sequence = bit_sequence[::-1]
+
     bytes_list = []
     for i in range(0, len(bit_sequence), 8):
         byte_str = bit_sequence[i:i+8]
@@ -31,3 +34,15 @@ def bits_to_bytes_array(bit_sequence):
     bytes_list.reverse()
 
     return bytes_list
+
+# UnpackBytes() in Circom, input is in LE
+def bytes_array_to_bits(l):
+    bit_sequence = ""
+    for num in l:
+        b = to_bin(num, 8)
+        b_le = b[::-1]
+        bit_sequence += b_le
+
+    return bit_sequence
+
+b = "0100000000000100"
