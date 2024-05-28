@@ -1,0 +1,27 @@
+kp_bytes and bkey_bytes are represented as array of 32 bytes in Little Endian. You can use utils/utils.py to calculate them or their binary representation.
+
+For the test, we've used the following merkle tree (use a depth of 2):
+
+                      root
+               h12             h34
+             h1   h2         h3   h4
+
+Where:
+ - h1 = 1758490765468940807954599016609888765791454844200420332874551032572988775400
+ - h2 = 19619873512754412808778299742975677238425660237702563706481973198029218601566
+ - h3 = 20049797457456964865543292185229398130564654868499526722663188607220292602416 (kp_hs_id transformed to int)
+ - h4 = 12866792796789967090302115862046133021526406824811094283116392574855470592513
+ 
+ - h12 = 9863610005282736758239963839303133009976100581935995642524472152987625325383
+ - h34 = 17175249294744355452489346293032684725669503062173001234088208854250932738624
+ 
+ - root = 17627180145485382211428732651229903626705455119230262703278238456903644772624
+
+Path_indexes is used to indicate in which direction to hash. We use 0 if the current node is on the left (e.g., h3 -> i = 0 -> Poseidon([h3,h4])
+and 1 if the current node is on the right (e.g., h34 -> i = 1 -> Poseidon([h12, h34]))
+
+Path indicates the nodes from kp_hs_id to the root ([h4, h12])
+
+The circom implementation of Ed25519 uses a special format in base 2^85 to represent points. We've used utils/point_to_base_2_85.py
+to calculate the base 2^85 representation of kp_hs_id.
+ 
