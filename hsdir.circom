@@ -4,16 +4,16 @@ include "lib/check_blinded_key.circom";
 include "lib/check_merkle_tree.circom";
 
 template HSDir(depth){
-    signal input kp_bytes[32]; // kp_hs_id as an array of 32 bytes (le)
+    signal input kp_bytes[32]; // kp_hs_id as an array of 32 bytes
 
     signal input root; // Root of merkle tree
     signal input path_indexes[depth]; // Path selector to choose which direction to hash
     signal input path[depth]; // Path to the root
 
     signal input kp_base_85[4][3]; // Kp_hs_id in base 2^85
-    signal input bkey_bytes[32]; // Blinded key in bytes (le)
-    signal input period_number[8]; // Period number as an array of 8 bytes (le)
-    signal input period_length[8]; // Period lenth as an array of 8 bytes (le)
+    signal input bkey_bytes[32]; // Blinded key in bytes
+    signal input period_number[8]; // Period number as an array of 8 bytes
+    signal input period_length[8]; // Period lenth as an array of 8 bytes
 
     // Transform kp_hs_id to bits
     signal kp_bits[256];
