@@ -12,67 +12,7 @@ Code might fail if not enough memory (large integers turning into float due to l
 NOTE: When introducing the input in Circom, numbers must be represented as strings. Big ints lose precision if represented as numbers
 when being entered as inputs in Circom.
 """
-
-# Ed25519 implementation from https://datatracker.ietf.org/doc/html/rfc8032#section-6
-
-# Base field Z_p
-p = 2**255 - 19
-
-def modp_inv(x):
-    return pow(x, p-2, p)
-
-# Curve constant
-d = -121665 * modp_inv(121666) % p
-
-# Group order
-q = 2**252 + 27742317777372353535851937790883648493
-
-# Square root of -1
-modp_sqrt_m1 = pow(2, (p-1) // 4, p)
-
-# Compute corresponding x-coordinate, with low bit corresponding to
-# sign, or return None on failure
-def recover_x(y, sign):
-    if y >= p:
-        return None
-    x2 = (y*y-1) * modp_inv(d*y*y+1)
-    if x2 == 0:
-        if sign:
-            return None
-        else:
-            return 0
-
-    # Compute square root of x2
-    x = pow(x2, (p+3) // 8, p)
-    if (x*x - x2) % p != 0:
-        x = x * modp_sqrt_m1 % p
-    if (x*x - x2) % p != 0:
-        return None
-
-    if (x & 1) != sign:
-        x = p - x
-    return x
-
-def point_decompress(s):
-    if len(s) != 32:
-        raise Exception("Invalid input length for decompression")
-    y = int.from_bytes(s, "little")
-    sign = y >> 255
-    y &= (1 << 255) - 1
-
-    x = recover_x(y, sign)
-    if x is None:
-        return None
-    else:
-        return (x, y, 1, x*y % p)
-
-
-# Base point
-g_y = 4 * modp_inv(5) % p
-g_x = recover_x(g_y, 0)
-G = (g_x, g_y, 1, g_x * g_y % p)
-
-###########################################
+from ed25519 import point_decompress
 
 # Tranforms coordinate into 255 bits
 def to_bin(n):
