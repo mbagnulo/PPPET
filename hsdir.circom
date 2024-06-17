@@ -12,8 +12,8 @@ template HSDir(depth){
 
     signal input kp_base_85[4][3]; // Kp_hs_id in base 2^85
     signal input bkey_bytes[32]; // Blinded key in bytes (LE)
-    signal input period_number[8]; // Period number as an array of 8 bytes
-    signal input period_length[8]; // Period lenth as an array of 8 bytes
+    signal input period_number[8]; // Period number as an array of 8 bytes (LE)
+    signal input period_length[8]; // Period lenth as an array of 8 bytes (LE)
 
     // Transform kp_hs_id to bits
     signal kp_bits[256];

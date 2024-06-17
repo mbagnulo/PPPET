@@ -13,8 +13,8 @@ template CheckBlindedKey(){
     signal input kp_bits[256];
     signal input kp_base_85[4][3];
     signal input bkey_bytes[32];
-    signal input period_number[8]; // Period number in bytes (LE)
-    signal input period_length[8]; // Period length in bytes (LE)
+    signal input period_number[8];
+    signal input period_length[8];
     
     signal h[32];
     signal h_bits[256];
@@ -96,7 +96,7 @@ template CheckBlindedKey(){
     
     unpack_3.bytes <== bkey_bytes;
     bkey_bits_2 <== unpack_3.bits;
-    
+
     component eq_arrays_2 = IsEqualArrays(256);
     eq_arrays_2.array1 <== bkey_bits_1;
     eq_arrays_2.array2 <== bkey_bits_2;
