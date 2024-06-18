@@ -45,6 +45,67 @@ template IsEqualArrays(size){
     }
 }
 
+template Join2Arrays(size1, size2){
+    signal input array1[size1];
+    signal input array2[size2];
+    signal output out_array[size1 + size2];
+
+    // Check that arrays are copied properly with a restriction
+    component isz[size1 + size2];
+
+    var j = 0;
+    for(var i = 0; i < size1; i++){
+        isz[j] = IsZero();
+        out_array[j] <== array1[i];
+        out_array[j] - array1[i] ==> isz[j].in;
+        isz[i].out === 1;
+        j++;
+    }
+
+    for(var i = 0; i < size2; i++){
+        isz[j] = IsZero();
+        out_array[j] <== array2[i];
+        out_array[j] - array2[i] ==> isz[j].in;
+        isz[i].out === 1;
+        j++;
+    }
+}
+
+template Join3Arrays(size1, size2, size3){
+    signal input array1[size1];
+    signal input array2[size2];
+    signal input array3[size3];
+    signal output out_array[size1 + size2 + size3];
+
+    // Check that arrays are copied properly with a restriction
+    component isz[size1 + size2 + size3];
+
+    var j = 0;
+    for(var i = 0; i < size1; i++){
+        isz[j] = IsZero();
+        out_array[j] <== array1[i];
+        out_array[j] - array1[i] ==> isz[j].in;
+        isz[i].out === 1;
+        j++;
+    }
+
+    for(var i = 0; i < size2; i++){
+        isz[j] = IsZero();
+        out_array[j] <== array2[i];
+        out_array[j] - array2[i] ==> isz[j].in;
+        isz[i].out === 1;
+        j++;
+    }
+
+    for(var i = 0; i < size3; i++){
+        isz[j] = IsZero();
+        out_array[j] <== array3[i];
+        out_array[j] - array3[i] ==> isz[j].in;
+        isz[i].out === 1;
+        j++;
+    }
+}
+
 
 // Fuses 6 arrays
 template FuseAllArrays(size1, size2, size3, size4, size5, size6){
