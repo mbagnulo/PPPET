@@ -35,13 +35,15 @@ For the length values:
 Instantiate KDF with SHAKE-256
 */
 
-// Calculates N_hs_subcred
-template GenerateSubcredentials(){
+// Calculates secret_input
+template GenerateSecretInput(){
     signal input kp_hs_id[32];
     signal input blinded_key[32];
-    signal output n_hs_subcred[32];
+    signal input rev_counter[8];
+    signal output secret_input[72];
 
     signal n_hs_cred[32];
+    signal n_hs_subcred[32];
 
     // "credential" and "subcredential" converted to bytes (LE) with ASCII
     signal credential[10] <== [108, 97, 105, 116, 110, 101, 100, 101, 114, 99];
@@ -65,21 +67,98 @@ template GenerateSubcredentials(){
     component sha3_2 = SHA3_256_bytes(77);
     sha3_2.inp_bytes <== j3a.out_array;
     n_hs_subcred <== sha3_2.out_bytes;
+
+    // Find secret_input
+    component j3a_2 = Join3Arrays(8, 32, 32);
+    j3a_2.array1 <== rev_counter;
+    j3a_2.array2 <== n_hs_subcred;
+    j3a_2.array3 <== blinded_key;
+
+    secret_input <== j3a_2.out_array;
+
 }
 
-template GenerateKeys(){
+template GenerateKeys_InnerLayer(){
     signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
     signal input blinded_key[32]; // Blinded key in bytes (LE)
     signal input salt[16]; // Salt in bytes (LE)
+    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
 
-    // Generate N_hs_subcred
-    signal n_hs_subcred[32];
-    component subcred_gen = GenerateSubcredentials();
-    subcred_gen.kp_hs_id <== kp_hs_id;
-    subcred_gen.blinded_key <== blinded_key;
-    n_hs_subcred <== subcred_gen.n_hs_subcred;
+    signal output secret_key[32];
+    signal output secret_iv[16];
 
+    // Generate secret_input (LE)
+    signal secret_input[72];
+    component input_gen = GenerateSecretInput();
+    input_gen.kp_hs_id <== kp_hs_id;
+    input_gen.blinded_key <== blinded_key;
+    input_gen.rev_counter <== rev_counter;
+    secret_input <== input_gen.secret_input;
 
+    // "hsdir-encrypted-data" in LE
+    signal STRING_CONSTANT[20] <== [97, 116, 97, 100, 45, 100, 101, 116, 112, 121, 114, 99, 110, 101, 45, 114, 105, 100, 115, 104];
 
+    // Generate input for keys = KDF(...) (LE)
+    signal kdf_input[108];
+    component j3a = Join3Arrays(20,16,72);
+    j3a.array1 <== STRING_CONSTANT;
+    j3a.array2 <== salt;
+    j3a.array3 <== secret_input;
+    kdf_input <== j3a.out_array;
+
+    // Generate keys (LE)
+    signal keys[48];
+    component shake256 = SHAKE256_bytes(108, 48); // 48 = 32 (S_KEY_LEN) + 16 (S_IV_LEN) + 0 (MAC_KEY_LEN)
+    shake256.inp_bytes <== kdf_input;
+    keys <== shake256.out_bytes;
+
+    component s2a = Separate2Arrays(16,32);
+    s2a.in_array <== keys;
+    secret_iv <== s2a.out_array1;
+    secret_key <== s2a.out_array2;
 }
-component main = GenerateKeys();
+
+template GenerateKeys_OuterLayer(){
+    signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
+    signal input blinded_key[32]; // Blinded key in bytes (LE)
+    signal input salt[16]; // Salt in bytes (LE)
+    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+
+    signal output secret_key[32];
+    signal output secret_iv[16];
+
+    // Generate secret_input (LE)
+    signal secret_input[72];
+    component input_gen = GenerateSecretInput();
+    input_gen.kp_hs_id <== kp_hs_id;
+    input_gen.blinded_key <== blinded_key;
+    input_gen.rev_counter <== rev_counter;
+    secret_input <== input_gen.secret_input;
+
+    // "hsdir-superencrypted-data" in LE
+    signal STRING_CONSTANT[25] <== [97, 116, 97, 100, 45, 100, 101, 116, 112, 121, 114, 99, 110, 101, 114, 101, 112, 117, 115, 45, 114, 105, 100, 115, 104];
+
+    // Generate input for keys = KDF(...) (LE)
+    signal kdf_input[113];
+    component j3a = Join3Arrays(25,16,72);
+    j3a.array1 <== STRING_CONSTANT;
+    j3a.array2 <== salt;
+    j3a.array3 <== secret_input;
+    kdf_input <== j3a.out_array;
+
+    // Generate keys (LE)
+    signal keys[48];
+    component shake256 = SHAKE256_bytes(113, 48); // 48 = 32 (S_KEY_LEN) + 16 (S_IV_LEN) + 0 (MAC_KEY_LEN)
+    shake256.inp_bytes <== kdf_input;
+    keys <== shake256.out_bytes;
+
+    component s2a = Separate2Arrays(16,32);
+    s2a.in_array <== keys;
+    secret_iv <== s2a.out_array1;
+    secret_key <== s2a.out_array2;
+}
+
+
+//component main = GenerateKeys_InnerLayer();
+//component main = GenerateKeys_OuterLayer();
+

@@ -58,7 +58,7 @@ template Join2Arrays(size1, size2){
         isz[j] = IsZero();
         out_array[j] <== array1[i];
         out_array[j] - array1[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -66,7 +66,7 @@ template Join2Arrays(size1, size2){
         isz[j] = IsZero();
         out_array[j] <== array2[i];
         out_array[j] - array2[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 }
@@ -85,7 +85,7 @@ template Join3Arrays(size1, size2, size3){
         isz[j] = IsZero();
         out_array[j] <== array1[i];
         out_array[j] - array1[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -93,7 +93,7 @@ template Join3Arrays(size1, size2, size3){
         isz[j] = IsZero();
         out_array[j] <== array2[i];
         out_array[j] - array2[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -101,7 +101,7 @@ template Join3Arrays(size1, size2, size3){
         isz[j] = IsZero();
         out_array[j] <== array3[i];
         out_array[j] - array3[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 }
@@ -125,7 +125,7 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array1[i];
         out_array[j] - array1[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -133,7 +133,7 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array2[i];
         out_array[j] - array2[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -141,7 +141,7 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array3[i];
         out_array[j] - array3[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -149,7 +149,7 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array4[i];
         out_array[j] - array4[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -157,7 +157,7 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array5[i];
         out_array[j] - array5[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
         j++;
     }
 
@@ -165,7 +165,32 @@ template FuseAllArrays(size1, size2, size3, size4, size5, size6){
         isz[j] = IsZero();
         out_array[j] <== array6[i];
         out_array[j] - array6[i] ==> isz[j].in;
-        isz[i].out === 1;
+        isz[j].out === 1;
+        j++;
+    }
+}
+
+// Separate 2 arrays
+template Separate2Arrays(size1, size2){
+    signal input in_array[size1 + size2];
+    signal output out_array1[size1];
+    signal output out_array2[size2];
+
+    component isz[size1 + size2];
+    var j = 0;
+    for(var i = 0; i < size1; i++){
+        isz[j] = IsZero();
+        out_array1[i] <== in_array[j];
+        out_array1[i] - in_array[j] ==> isz[j].in;
+        isz[j].out === 1;
+        j++;
+    }
+
+    for(var i = 0; i < size2; i++){
+        isz[j] = IsZero();
+        out_array2[i] <== in_array[j];
+        out_array2[i] - in_array[j] ==> isz[j].in;
+        isz[j].out === 1;
         j++;
     }
 }
