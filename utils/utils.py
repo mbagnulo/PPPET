@@ -1,5 +1,6 @@
 import hashlib
 import random
+import base64
 
 # big endian to little endian or viceversa
 def to_endian(b):
@@ -35,6 +36,7 @@ def bits_to_bytes_array(bit_sequence):
     return bytes_list
 
 # UnpackBytes() in Circom
+# int.from_bytes(l, "little") but the output is expressed as a sequence of bits in LE
 def bytes_array_to_bits(l):
     bit_sequence = ""
     for num in l:
@@ -60,4 +62,27 @@ def hex_to_bytes(hex_string):
     
     byte_array = [int(hex_string[i:i+2], 16) for i in range(0, len(hex_string), 2)]
     
+    return byte_array
+
+# Transforms a bytes array (BE) into Base64
+def bytes_to_base64(byte_array):
+    byte_data = bytes(byte_array)
+    base64_encoded = base64.b64encode(byte_data)
+    base64_string = base64_encoded.decode('ascii')
+    
+    return base64_string
+
+# Transforms text into a bytes array (BE) using ASCII
+def text_to_byte_array(text):
+    byte_data = text.encode('ascii')
+    byte_array = list(byte_data)
+    
+    return byte_array
+
+# Transforms text_file (for example, descriptors) into a bytes array (BE) using ASCII
+def text_file_to_byte_array(file_path):
+    with open(file_path, 'r', encoding='ascii') as file:
+        text = file.read()
+    byte_data = text.encode('ascii')
+    byte_array = list(byte_data)
     return byte_array
