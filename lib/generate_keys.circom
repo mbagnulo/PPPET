@@ -84,8 +84,11 @@ template GenerateKeys_InnerLayer(){
     signal input salt[16]; // Salt in bytes (LE)
     signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
 
-    signal output secret_key[32];
-    signal output secret_iv[16];
+    signal output secret_key_bits[256];
+    signal output secret_iv_bits[128];
+
+    signal secret_key[32];
+    signal secret_iv[16];
 
     // Generate secret_input (LE)
     signal secret_input[72];
@@ -116,6 +119,15 @@ template GenerateKeys_InnerLayer(){
     s2a.in_array <== keys;
     secret_iv <== s2a.out_array1;
     secret_key <== s2a.out_array2;
+
+    // Pass key and IV to bits
+    component unpack1 = UnpackBytes(16);
+    unpack1.bytes <== secret_iv;
+    secret_iv_bits <== unpack1.bits;
+    component unpack2 = UnpackBytes(32);
+    unpack2.bytes <== secret_key;
+    secret_key_bits <== unpack2.bits;
+
 }
 
 template GenerateKeys_OuterLayer(){
@@ -124,8 +136,11 @@ template GenerateKeys_OuterLayer(){
     signal input salt[16]; // Salt in bytes (LE)
     signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
 
-    signal output secret_key[32];
-    signal output secret_iv[16];
+    signal output secret_iv_bits[128];
+    signal output secret_key_bits[256];
+
+    signal secret_key[32];
+    signal secret_iv[16];
 
     // Generate secret_input (LE)
     signal secret_input[72];
@@ -156,8 +171,15 @@ template GenerateKeys_OuterLayer(){
     s2a.in_array <== keys;
     secret_iv <== s2a.out_array1;
     secret_key <== s2a.out_array2;
-}
 
+    // Pass key and IV to bits
+    component unpack1 = UnpackBytes(16);
+    unpack1.bytes <== secret_iv;
+    secret_iv_bits <== unpack1.bits;
+    component unpack2 = UnpackBytes(32);
+    unpack2.bytes <== secret_key;
+    secret_key_bits <== unpack2.bits;
+}
 
 //component main = GenerateKeys_InnerLayer();
 //component main = GenerateKeys_OuterLayer();
