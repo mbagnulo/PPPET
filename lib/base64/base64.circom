@@ -233,5 +233,3 @@ template Base64Lookup() {
     1 === range_AZ + range_az + range_09 + equal_plus.out + equal_slash.out + equal_eqsign.out;
 
 }
-
-component main = Base64Decode(3);
