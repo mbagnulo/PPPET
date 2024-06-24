@@ -67,7 +67,7 @@ if __name__ == "__main__":
     print(root)
     print("")
 
-    print("A:")
+    print("ip_key:")
     print(pk)
     print("")
 
