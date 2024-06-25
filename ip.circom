@@ -50,7 +50,6 @@ template IP(depth){
     merkle_tree.path_indexes <== path_indexes;
 
     // Check that input blinded key corresponds to the one calculated with kp_hs_id
-    /*
     component check_bkey = CheckBlindedKey();
     check_bkey.kp_bytes <== kp_hs_id;
     check_bkey.kp_bits <== kp_bits;
@@ -58,7 +57,6 @@ template IP(depth){
     check_bkey.bkey_bytes <== blinded_key;
     check_bkey.period_number <== period_number;
     check_bkey.period_length <== period_length; 
-    */  
     
     // Verify signature
     component verify = Ed25519Verifier(256);
@@ -72,4 +70,4 @@ template IP(depth){
     1 === verify.out;
 }
 
-component main {public [blinded_key, period_number, period_length]} = IP(2);
+component main {public [blinded_key]} = IP(2);
