@@ -48,7 +48,6 @@ if __name__ == "__main__":
     s_bytes = hex_to_bytes(s_hex)
 
     #msg = bit_string_to_array(bytes_array_to_bits(msg_bytes))
-    pk = bit_string_to_array(bytes_array_to_bits(pk_bytes))
     r = bit_string_to_array(bytes_array_to_bits(r_bytes))
     s = bit_string_to_array(bytes_array_to_bits(s_bytes))[:255]
 
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     print("")
 
     print("ip_key:")
-    print(pk)
+    print(pk_bytes)
     print("")
 
     print("R8:")
