@@ -113,13 +113,6 @@ template Base64Decode(byteLength) {
         idx += 3;
 
     }
-
-    // REMOVE - print output
-    for (var i = 0; i < byteLength; i++){
-        log(out[i]);
-    }
-
-
 }
 
 
