@@ -1,6 +1,8 @@
 pragma circom 2.0.0;
 
-include "../lib/circomlib/comparators.circom";
+//include "../lib/circomlib/comparators.circom";
+include "circomlib/comparators.circom";
+include "hash_circuits/keccak/keccak-p.circom";
 
 
 // Performs clamping to the blinding factor according to Ed25519 documentation
@@ -193,4 +195,22 @@ template Separate2Arrays(size1, size2){
         isz[j].out === 1;
         j++;
     }
+}
+
+// Takes a byte sequence in BE and transforms it to a LE bit sequence
+// Based on UnpackBytes() from hash_circuits
+template UnpackBytes_BE_to_LE(n) {
+  signal input  bytes[n];
+  signal output bits[8*n];
+
+  component tobits[n];
+  var z = n - 1;
+  for(var j=0; j<n; j++) {
+    tobits[j] = ToBits(8);
+    tobits[j].inp <== bytes[z];
+    z--;
+    for(var i=0; i<8; i++) {
+      tobits[j].out[i] ==> bits[ j*8 + i ];
+    }
+  }
 }
