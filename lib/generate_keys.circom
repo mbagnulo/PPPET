@@ -80,24 +80,17 @@ template GenerateSecretInput(){
 
 // Generate keys needed to encrypt inner layer plaintext and obtain the "encrypted" field of the outer layer
 template GenerateKeys_InnerLayer(){
-    signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
-    signal input blinded_key[32]; // Blinded key in bytes (LE)
-    signal input salt[16]; // Salt in bytes (LE)
-    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+    signal input kp_hs_id[32];
+    signal input blinded_key[32];
+    signal input salt[16];
+    signal input rev_counter[8];
+    signal input secret_input[72];
 
     signal output secret_key_bits[256];
     signal output secret_iv_bits[128];
 
     signal secret_key[32];
     signal secret_iv[16];
-
-    // Generate secret_input (LE)
-    signal secret_input[72];
-    component input_gen = GenerateSecretInput();
-    input_gen.kp_hs_id <== kp_hs_id;
-    input_gen.blinded_key <== blinded_key;
-    input_gen.rev_counter <== rev_counter;
-    secret_input <== input_gen.secret_input;
 
     // "hsdir-encrypted-data" in LE
     signal STRING_CONSTANT[20] <== [97, 116, 97, 100, 45, 100, 101, 116, 112, 121, 114, 99, 110, 101, 45, 114, 105, 100, 115, 104];
@@ -135,24 +128,17 @@ template GenerateKeys_InnerLayer(){
 
 // Generate keys needed to encrypt outer layer plaintext and obtain the "superencrypted" field of the descriptor header
 template GenerateKeys_OuterLayer(){
-    signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
-    signal input blinded_key[32]; // Blinded key in bytes (LE)
-    signal input salt[16]; // Salt in bytes (LE)
-    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+    signal input kp_hs_id[32];
+    signal input blinded_key[32];
+    signal input salt[16];
+    signal input rev_counter[8];
+    signal input secret_input[72];
 
     signal output secret_iv_bits[128];
     signal output secret_key_bits[256];
 
     signal secret_key[32];
     signal secret_iv[16];
-
-    // Generate secret_input (LE)
-    signal secret_input[72];
-    component input_gen = GenerateSecretInput();
-    input_gen.kp_hs_id <== kp_hs_id;
-    input_gen.blinded_key <== blinded_key;
-    input_gen.rev_counter <== rev_counter;
-    secret_input <== input_gen.secret_input;
 
     // "hsdir-superencrypted-data" in LE
     signal STRING_CONSTANT[25] <== [97, 116, 97, 100, 45, 100, 101, 116, 112, 121, 114, 99, 110, 101, 114, 101, 112, 117, 115, 45, 114, 105, 100, 115, 104];
@@ -185,6 +171,50 @@ template GenerateKeys_OuterLayer(){
     secret_key_bits <== unpack2.bits;
 }
 
-//component main = GenerateKeys_InnerLayer();
-//component main = GenerateKeys_OuterLayer();
+template GenerateKeys(){
+    signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
+    signal input blinded_key[32]; // Blinded key in bytes (LE)
+    signal input inner_salt[16]; // Salt in bytes (LE) for inner layer keys
+    signal input outer_salt[16]; // Salt in bytes (LE) for outer layer keys
+    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+
+    // Salts are precalculated
+
+    signal output inner_key[256];
+    signal output inner_iv[128];
+    signal output outer_key[256];
+    signal output outer_iv[128];
+
+    // Generate secret_input (LE)
+    signal secret_input[72];
+    component input_gen = GenerateSecretInput();
+    input_gen.kp_hs_id <== kp_hs_id;
+    input_gen.blinded_key <== blinded_key;
+    input_gen.rev_counter <== rev_counter;
+    secret_input <== input_gen.secret_input;
+
+    // Since we don't consider client authorization, we can use the same secret input for both keys
+    // Calculate both keys & ivs
+    component inner_key_gen = GenerateKeys_InnerLayer();
+    inner_key_gen.kp_hs_id <== kp_hs_id;
+    inner_key_gen.blinded_key <== blinded_key;
+    inner_key_gen.salt <== inner_salt;
+    inner_key_gen.rev_counter <== rev_counter;
+    inner_key_gen.secret_input <== secret_input;
+
+    inner_key <== inner_key_gen.secret_key_bits;
+    inner_iv <== inner_key_gen.secret_iv_bits;
+
+    component outer_key_gen = GenerateKeys_OuterLayer();
+    outer_key_gen.kp_hs_id <== kp_hs_id;
+    outer_key_gen.blinded_key <== blinded_key;
+    outer_key_gen.salt <== outer_salt;
+    outer_key_gen.rev_counter <== rev_counter;
+    outer_key_gen.secret_input <== secret_input;
+
+    outer_key <== outer_key_gen.secret_key_bits;
+    outer_iv <== outer_key_gen.secret_iv_bits;
+}
+
+//component main = GenerateKeys();
 
