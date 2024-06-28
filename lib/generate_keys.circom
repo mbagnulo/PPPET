@@ -78,6 +78,7 @@ template GenerateSecretInput(){
 
 }
 
+// Generate keys needed to encrypt inner layer plaintext and obtain the "encrypted" field of the outer layer
 template GenerateKeys_InnerLayer(){
     signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
     signal input blinded_key[32]; // Blinded key in bytes (LE)
@@ -109,6 +110,8 @@ template GenerateKeys_InnerLayer(){
     j3a.array3 <== secret_input;
     kdf_input <== j3a.out_array;
 
+    // We don't add descriptor cookie to the blinded public key since we don't consider client authorization
+
     // Generate keys (LE)
     signal keys[48];
     component shake256 = SHAKE256_bytes(108, 48); // 48 = 32 (S_KEY_LEN) + 16 (S_IV_LEN) + 0 (MAC_KEY_LEN)
@@ -130,6 +133,7 @@ template GenerateKeys_InnerLayer(){
 
 }
 
+// Generate keys needed to encrypt outer layer plaintext and obtain the "superencrypted" field of the descriptor header
 template GenerateKeys_OuterLayer(){
     signal input kp_hs_id[32]; // kp_hs_id in bytes (LE)
     signal input blinded_key[32]; // Blinded key in bytes (LE)
