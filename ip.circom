@@ -5,8 +5,18 @@ pragma circom 2.0.0;
 include "lib/ed25519_circom/verify.circom";
 include "lib/check_merkle_tree.circom";
 include "lib/check_blinded_key.circom";
+include "lib/check_key_descriptor.circom";
+include "lib/generate_keys.circom";
 
-template IP(depth){
+/*
+start_key_byte: Index of first byte of IP key in 2nd layer of plaintext
+inner_length: Length of the inner layer plaintext
+
+Adding padding to the inner layer plaintext before passing it as an input
+may be needed so it has a length multiple of 16 bytes so it can be encrypted with AES256. 
+*/
+
+template IP(depth, start_key_byte, inner_length){
     signal input kp_hs_id[32]; // Hidden service public Ed25519 key in bytes
 
     signal input root; // Merkle tree root
@@ -24,6 +34,15 @@ template IP(depth){
     signal input PointA[4][3]; // IP public Ed25519 key represented in base 2^85
     signal input PointR[4][3]; // R8 represented in base 2^85
 
+    signal input inner_plaintext[inner_length]; // Plaintext of inner layer
+    signal input inner_salt[16]; // Salt used for generating the keys for inner layer encryption
+    signal input outer_salt[16]; // Salt used for generating the keys for outer layer encryption
+    signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+
+
+    // Do we need a separate salt for both encryptions? Probably yes
+
+    /*
     // Transform the root (message before signing) to bits
     signal root_bits[256];
     component n2b = Num2Bits(256);
@@ -68,6 +87,48 @@ template IP(depth){
     verify.PointR <== PointR;
 
     1 === verify.out;
+    */
+
+    // Check that IP key is in descriptor
+    component check_key = CheckKeyDescriptor(start_key_byte, inner_length);
+    check_key.plaintext <== inner_plaintext;
+    check_key.ip_key <== ip_key;
+
+    // Obtain keys and IVs for encrpytion
+    signal inner_key[256];
+    signal inner_iv[128];
+    signal outer_key[256];
+    signal outer_iv[128];
+
+    component keys_gen = GenerateKeys();
+    keys_gen.kp_hs_id <== kp_hs_id;
+    keys_gen.blinded_key <== blinded_key;
+    keys_gen.inner_salt <== inner_salt;
+    keys_gen.outer_salt <== outer_salt;
+    keys_gen.rev_counter <== rev_counter;
+
+    inner_key <== keys_gen.inner_key;
+    inner_iv <== keys_gen.inner_iv;
+    outer_key <== keys_gen.outer_key;
+    outer_iv <== keys_gen.outer_iv;
+
+    // Encrypt inner layer plaintext to obtain "encrypted" field
+    //assert(inner_length % 16 === 0);
+
+    // Compare calculated blob to the "encrypted" field passed as an input in base64
+
+    /*
+    Either:
+    - Build the outer layer plaintext
+    - Check that the correct "encrypted" field is inside the outer layer (probably this option)
+    */
+
+    // Obtain key and IV for encrypting outer text
+
+    // Add padding and encrypt the outer layer plaintext to obtain "superencrypted" field
+
+    // Compare calculated blob to the descriptor's header "superencrypted" field passed in base64 (public input)
+
 }
 
-component main {public [blinded_key]} = IP(2);
+component main {public [blinded_key]} = IP(2,80,190);
