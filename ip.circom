@@ -7,6 +7,7 @@ include "lib/check_merkle_tree.circom";
 include "lib/check_blinded_key.circom";
 include "lib/check_key_descriptor.circom";
 include "lib/generate_keys.circom";
+include "lib/encrypt_descriptor.circom";
 
 /*
 start_key_byte: Index of first byte of IP key in 2nd layer of plaintext
@@ -42,7 +43,6 @@ template IP(depth, start_key_byte, inner_length){
 
     // Do we need a separate salt for both encryptions? Probably yes
 
-    /*
     // Transform the root (message before signing) to bits
     signal root_bits[256];
     component n2b = Num2Bits(256);
@@ -87,7 +87,6 @@ template IP(depth, start_key_byte, inner_length){
     verify.PointR <== PointR;
 
     1 === verify.out;
-    */
 
     // Check that IP key is in descriptor
     component check_key = CheckKeyDescriptor(start_key_byte, inner_length);
@@ -113,7 +112,14 @@ template IP(depth, start_key_byte, inner_length){
     outer_iv <== keys_gen.outer_iv;
 
     // Encrypt inner layer plaintext to obtain "encrypted" field
-    //assert(inner_length % 16 === 0);
+    assert(inner_length % 16 == 0);
+    var n_bits = inner_length * 8;
+    signal encrypted_inner_layer[n_bits];
+    component encrypt_inner = EncryptInnerLayer(inner_length);
+    encrypt_inner.plaintext <== inner_plaintext;
+    encrypt_inner.key <== inner_key;
+    encrypt_inner.iv <== inner_iv;
+    encrypted_inner_layer <== encrypt_inner.encrypted_plaintext;
 
     // Compare calculated blob to the "encrypted" field passed as an input in base64
 
@@ -123,12 +129,10 @@ template IP(depth, start_key_byte, inner_length){
     - Check that the correct "encrypted" field is inside the outer layer (probably this option)
     */
 
-    // Obtain key and IV for encrypting outer text
-
     // Add padding and encrypt the outer layer plaintext to obtain "superencrypted" field
 
     // Compare calculated blob to the descriptor's header "superencrypted" field passed in base64 (public input)
 
 }
 
-component main {public [blinded_key]} = IP(2,80,190);
+component main {public [blinded_key]} = IP(2,80,2400);
