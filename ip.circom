@@ -8,6 +8,8 @@ include "lib/check_blinded_key.circom";
 include "lib/check_key_descriptor.circom";
 include "lib/generate_keys.circom";
 include "lib/encrypt_descriptor.circom";
+include "lib/compare_descriptors.circom";
+include "lib/check_outer_layer.circom";
 
 /*
 start_key_byte: Index of first byte of IP key in 2nd layer of plaintext
@@ -17,7 +19,7 @@ Adding padding to the inner layer plaintext before passing it as an input
 may be needed so it has a length multiple of 16 bytes so it can be encrypted with AES256. 
 */
 
-template IP(depth, start_key_byte, inner_length){
+template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_byte){
     signal input kp_hs_id[32]; // Hidden service public Ed25519 key in bytes
 
     signal input root; // Merkle tree root
@@ -35,14 +37,18 @@ template IP(depth, start_key_byte, inner_length){
     signal input PointA[4][3]; // IP public Ed25519 key represented in base 2^85
     signal input PointR[4][3]; // R8 represented in base 2^85
 
+    var encrypted_length = 4 * ((inner_length + 2) \ 3);
     signal input inner_plaintext[inner_length]; // Plaintext of inner layer
+    signal input outer_plaintext[outer_length]; // Plaintext of outer layer
     signal input inner_salt[16]; // Salt used for generating the keys for inner layer encryption
     signal input outer_salt[16]; // Salt used for generating the keys for outer layer encryption
     signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
+    signal input encrypted[encrypted_length]; // "encrypted" field of outer layer in BE bytes (Base64 -> ASCII)
+
 
 
     // Do we need a separate salt for both encryptions? Probably yes
-
+    
     // Transform the root (message before signing) to bits
     signal root_bits[256];
     component n2b = Num2Bits(256);
@@ -122,12 +128,14 @@ template IP(depth, start_key_byte, inner_length){
     encrypted_inner_layer <== encrypt_inner.encrypted_plaintext;
 
     // Compare calculated blob to the "encrypted" field passed as an input in base64
+    component comp_desc_1 = CompareDescriptor(inner_length);
+    comp_desc_1.b64_field <== encrypted;
+    comp_desc_1.enc_result <== encrypted_inner_layer;
 
-    /*
-    Either:
-    - Build the outer layer plaintext
-    - Check that the correct "encrypted" field is inside the outer layer (probably this option)
-    */
+    // Check that the "encrypted" field in the outer layer is correct
+    component check_outer = CheckOuterLayer(outer_length, encrypted_length, start_encrypted_byte);
+    check_outer.outer_layer <== outer_plaintext;
+    check_outer.encrypted <== encrypted;
 
     // Add padding and encrypt the outer layer plaintext to obtain "superencrypted" field
 
@@ -135,4 +143,4 @@ template IP(depth, start_key_byte, inner_length){
 
 }
 
-component main {public [blinded_key]} = IP(2,80,2400);
+component main {public [blinded_key]} = IP(2,80,2400, 4752, 1532);
