@@ -48,7 +48,7 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
 
 
     // Do we need a separate salt for both encryptions? Probably yes
-    
+
     // Transform the root (message before signing) to bits
     signal root_bits[256];
     component n2b = Num2Bits(256);
@@ -138,6 +138,14 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     check_outer.encrypted <== encrypted;
 
     // Add padding and encrypt the outer layer plaintext to obtain "superencrypted" field
+    var padding = calculate_padding(outer_length);
+    var n_bits_2 = (outer_length + padding) * 8;
+    signal encrypted_outer_layer[n_bits_2];
+    component encrypt_outer = EncryptOuterLayer(outer_length, padding);
+    encrypt_outer.plaintext <== outer_plaintext;
+    encrypt_outer.key <== outer_key;
+    encrypt_outer.iv <== outer_iv;
+    encrypted_outer_layer <== encrypt_outer.encrypted_plaintext;
 
     // Compare calculated blob to the descriptor's header "superencrypted" field passed in base64 (public input)
 
