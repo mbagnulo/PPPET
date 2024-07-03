@@ -37,17 +37,20 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     signal input PointA[4][3]; // IP public Ed25519 key represented in base 2^85
     signal input PointR[4][3]; // R8 represented in base 2^85
 
+    // Padding bytes necessary before encrypting outer layer
+    var padding = calculate_padding(outer_length);
+
+    // Lengths of "encrypted" and "superencrypted" fields
     var encrypted_length = 4 * ((inner_length + 2) \ 3);
+    var superencrypted_length = 4 * ((outer_length + padding + 2) \ 3);
+
     signal input inner_plaintext[inner_length]; // Plaintext of inner layer
     signal input outer_plaintext[outer_length]; // Plaintext of outer layer
     signal input inner_salt[16]; // Salt used for generating the keys for inner layer encryption
     signal input outer_salt[16]; // Salt used for generating the keys for outer layer encryption
     signal input rev_counter[8]; // Descriptor revision counter in bytes (LE)
     signal input encrypted[encrypted_length]; // "encrypted" field of outer layer in BE bytes (Base64 -> ASCII)
-
-
-
-    // Do we need a separate salt for both encryptions? Probably yes
+    signal input superencrypted[superencrypted_length]; // "superencrypted" field of descriptor header in BE bytes (Base64 -> ASCII)
 
     // Transform the root (message before signing) to bits
     signal root_bits[256];
@@ -138,7 +141,6 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     check_outer.encrypted <== encrypted;
 
     // Add padding and encrypt the outer layer plaintext to obtain "superencrypted" field
-    var padding = calculate_padding(outer_length);
     var n_bits_2 = (outer_length + padding) * 8;
     signal encrypted_outer_layer[n_bits_2];
     component encrypt_outer = EncryptOuterLayer(outer_length, padding);
@@ -148,7 +150,10 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     encrypted_outer_layer <== encrypt_outer.encrypted_plaintext;
 
     // Compare calculated blob to the descriptor's header "superencrypted" field passed in base64 (public input)
+    component comp_desc_2 = CompareDescriptor(outer_length + padding);
+    comp_desc_2.b64_field <== superencrypted;
+    comp_desc_2.enc_result <== encrypted_outer_layer;
 
 }
 
-component main {public [blinded_key]} = IP(2,80,2400, 4752, 1532);
+component main {public [blinded_key, superencrypted]} = IP(2,80,2400, 4752, 1532);
