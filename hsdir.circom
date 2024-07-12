@@ -40,4 +40,4 @@ template HSDir(depth){
 }
 
 // Depth of Merkle Tree is passed as argument, change accordingly
-component main {public [root, bkey_bytes, period_number, period_length]} = HSDir(2);
+component main {public [root, bkey_bytes]} = HSDir(2);
