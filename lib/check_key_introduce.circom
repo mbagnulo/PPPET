@@ -2,7 +2,6 @@ pragma circom 2.0.0;
 
 include "utils.circom";
 include "circomlib/comparators.circom";
-include "hex_to_bytes.circom";
 
 /*
 Checks that the hidden service key is inside the INTRODUCE1 cell encrypted plaintext
