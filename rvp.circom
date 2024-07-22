@@ -3,13 +3,11 @@ pragma circom 2.0.0;
 include "lib/ed25519_circom/verify.circom";
 include "lib/check_merkle_tree.circom";
 include "lib/check_blinded_key.circom";
-include "lib/check_key_descriptor.circom";
-include "lib/generate_keys.circom";
-include "lib/encrypt_descriptor.circom";
-include "lib/compare_descriptors.circom";
-include "lib/check_outer_layer.circom";
+include "lib/check_key_introduce.circom";
+include "lib/generate_keys_introduce1.circom";
 
-template RVP(depth){
+// start_key_byte: Index of first byte of the RVP key in the INTRODUCE1 cell plaintext
+template RVP(depth, plaintext_length, start_key_byte){
     signal input kp_hs_id[32]; // Hidden service public Ed25519 key in bytes
 
     signal input root; // Merkle tree root
@@ -26,6 +24,9 @@ template RVP(depth){
     signal input S[255]; // S part of signature in bits (LSB to MSB) (first 255 bits)
     signal input PointA[4][3]; // RVP public Ed25519 key represented in base 2^85
     signal input PointR[4][3]; // R8 represented in base 2^85
+
+    signal input plaintext[plaintext_length]; // INTRODUCE1 cell plaintext in bytes (BE)
+    signal input intro_secret_hs_input[129]; // intro_secret_hs_input in bytes (LE)
 
     // Transform the root (message before signing) to bits
     signal root_bits[256];
@@ -45,6 +46,7 @@ template RVP(depth){
     unpack2.bytes <== rvp_key;
     rvp_key_bits <== unpack2.bits;
 
+    
     // Check that kp_hs_id is on IP allow list
     component merkle_tree = CheckMerkleTree(depth);
     merkle_tree.root <== root;
@@ -62,12 +64,30 @@ template RVP(depth){
     check_bkey.period_length <== period_length;
 
     // Verify root signature with RVP key
+    component verify = Ed25519Verifier(256);
+    verify.msg <== root_bits;
+    verify.A <== ip_key_bits;
+    verify.R8 <== R8;
+    verify.S <== S;
+    verify.PointA <== PointA;
+    verify.PointR <== PointR;
+
+    1 === verify.out;
 
     // Check that the RVP key is inside the plaintext
-
+    component check_key = CheckKeyIntroduce1(plaintext_length, start_key_byte);
+    check_key.plaintext <== plaintext;
+    check_key.rvp_key <== rvp_key;
+    
     // Generate encryption key
-
+    signal enc_key[32];
+    component calculate_key = GenerateKeyIntroduce1();
+    calculate_key.kp_hs_id <== kp_hs_id;
+    calculate_key.blinded_key <== blinded_key;
+    calculate_key.intro_secret_hs_input <== intro_secret_hs_input;
+    enc_key <== calculate_key.key;
+    
     // Check that encrypting the plaintext with the key coincides with the encrypted field
 }
 
-component main {public [blinded_key]} = RVP(2);
+component main {public [blinded_key]} = RVP(2, 192, 26);
