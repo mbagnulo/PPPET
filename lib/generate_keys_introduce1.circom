@@ -108,11 +108,15 @@ template GenerateKeyIntroduce1(){
     j3a.array3 <== intro_secret_hs_input;
     kdf_input <== j3a.out_array;
 
-    // Generate keys in bytes (LE)
+    // Generate keys in bits (LE)
     // We will precalculate the MAC, so we don't need to calculate the MAC key
     // The IV is all 0s, so we also don't need to calculate the IV
-    signal output key[32];
     component shake256 = SHAKE256_bytes(kdf_length, 32); // S_KEY_LEN = 32
     shake256.inp_bytes <== kdf_input;
-    key <== shake256.out_bytes;
+
+    signal output key[256];
+    component unpack = UnpackBytes(32);
+    unpack.bytes <== shake256.out_bytes;
+    key <== unpack.bits;
+
 }
