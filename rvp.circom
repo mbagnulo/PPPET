@@ -5,6 +5,7 @@ include "lib/check_merkle_tree.circom";
 include "lib/check_blinded_key.circom";
 include "lib/check_key_introduce.circom";
 include "lib/generate_keys_introduce1.circom";
+include "lib/encrypt_introduce1.circom";
 
 // start_key_byte: Index of first byte of the RVP key in the INTRODUCE1 cell plaintext
 template RVP(depth, plaintext_length, start_key_byte){
@@ -27,6 +28,11 @@ template RVP(depth, plaintext_length, start_key_byte){
 
     signal input plaintext[plaintext_length]; // INTRODUCE1 cell plaintext in bytes (BE)
     signal input intro_secret_hs_input[129]; // intro_secret_hs_input in bytes (LE)
+    signal input client_pk[256]; // CLIENT_PK in bits (LE)
+    signal input mac[256]; // MAC in bits (LE)
+    var encrypted_length = plaintext_length * 8 + 256 + 256;
+    signal input encrypted[encrypted_length]; // Encrypted part of the INTRODUCE1 cell in bits (LE)
+
 
     // Transform the root (message before signing) to bits
     signal root_bits[256];
@@ -66,7 +72,7 @@ template RVP(depth, plaintext_length, start_key_byte){
     // Verify root signature with RVP key
     component verify = Ed25519Verifier(256);
     verify.msg <== root_bits;
-    verify.A <== ip_key_bits;
+    verify.A <== rvp_key_bits;
     verify.R8 <== R8;
     verify.S <== S;
     verify.PointA <== PointA;
@@ -80,14 +86,24 @@ template RVP(depth, plaintext_length, start_key_byte){
     check_key.rvp_key <== rvp_key;
     
     // Generate encryption key
-    signal enc_key[32];
+    signal key[256];
     component calculate_key = GenerateKeyIntroduce1();
     calculate_key.kp_hs_id <== kp_hs_id;
     calculate_key.blinded_key <== blinded_key;
     calculate_key.intro_secret_hs_input <== intro_secret_hs_input;
-    enc_key <== calculate_key.key;
+    key <== calculate_key.key;
     
-    // Check that encrypting the plaintext with the key coincides with the encrypted field
+    // Encrypt plaintext with key
+    component cipher = EncryptIntroduce1(plaintext_length);
+    cipher.client_pk <== client_pk;
+    cipher.plaintext <== plaintext;
+    cipher.mac <== mac;
+    cipher.key <== key;
+
+    // Check that the encrypted part of the INTRODUCE1 cell and the calculated encrypted plaintext are the same
+    component iseq = IsEqualArrays(encrypted_length);
+    iseq.array1 <== encrypted;
+    iseq.array2 <== cipher.out;
 }
 
-component main {public [blinded_key]} = RVP(2, 192, 26);
+component main {public [blinded_key, encrypted]} = RVP(2, 192, 26);
