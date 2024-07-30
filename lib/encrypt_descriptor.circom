@@ -58,22 +58,22 @@ template AddPadding(plaintext_length, padding){
     signal output out[plaintext_length + padding];
 
     // Copy plaintext to output array
-    component isz[plaintext_length + padding];
-
+    component iseq[plaintext_length];
+    component isz[padding];
     var j = 0;
     for(var i = 0; i < plaintext_length; i++){
-        isz[j] = IsZero();
+        iseq[i] = ForceEqual();
         out[j] <== plaintext[i];
-        out[j] - plaintext[i] ==> isz[j].in;
-        isz[j].out === 1;
+        iseq[i].in[0] <== plaintext[i];
+        iseq[i].in[1] <== out[j];
         j++;
     }
 
     for(var i = 0; i < padding; i++){
         isz[j] = IsZero();
         out[j] <== 0;
-        out[j] ==> isz[j].in;
-        isz[j].out === 1;
+        isz[j].in <== out[j];
+        (isz[j].out - 1)*(isz[j].out - 1) === 0;
         j++;
     }
 }
@@ -109,7 +109,6 @@ template EncryptOuterLayer(plaintext_length, padding){
 
     // Encrypt plaintext
     signal output encrypted_plaintext[n_bits];
-
     component aes = AES256CTR(n_bits);
     aes.in <== plaintext_bits;
     aes.ks <== ks;

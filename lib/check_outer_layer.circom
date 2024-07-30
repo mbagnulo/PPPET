@@ -1,5 +1,7 @@
 pragma circom 2.0.0;
 
+include "utils.circom";
+
 /*
 Checks that the "encrypted" field passed as an input is inside the outer layer
 
@@ -41,37 +43,33 @@ template CheckOuterLayer(outer_length, encrypted_length, start_encrypted){
     var z = 0;
 
     for(var i = 0; i < 10; i++){
-        iseq[z] = IsEqual();
+        iseq[z] = ForceEqual();
         iseq[z].in[0] <== field_header[i];
         iseq[z].in[1] <== outer_layer[j];
-        iseq[z].out === 1;
         j++;
         z++;
     }
 
     for(var i = 0; i < 22; i++){
-        iseq[z] = IsEqual();
+        iseq[z] = ForceEqual();
         iseq[z].in[0] <== begin_message[i];
         iseq[z].in[1] <== outer_layer[j];
-        iseq[z].out === 1;
         j++;
         z++;
     }
 
     for(var i = 0; i < encrypted_length; i++){
-        iseq[z] = IsEqual();
+        iseq[z] = ForceEqual();
         iseq[z].in[0] <== encrypted[i];
         iseq[z].in[1] <== outer_layer[j];
-        iseq[z].out === 1;
         j++;
         z++;
     }
 
     for(var i = 0; i < 19; i++){
-        iseq[z] = IsEqual();
+        iseq[z] = ForceEqual();
         iseq[z].in[0] <== end_message[i];
         iseq[z].in[1] <== outer_layer[j];
-        iseq[z].out === 1;
         j++;
         z++;
     }

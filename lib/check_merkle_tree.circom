@@ -1,6 +1,7 @@
 pragma circom 2.0.0;
 
 include "merkle_tree/tree.circom";
+include "utils.circom";
 include "circomlib/poseidon.circom";
 include "circomlib/bitify.circom";
 
@@ -32,7 +33,9 @@ template CheckMerkleTree(depth){
     signal out_root <== merkle_tree.root;
 
     // Check that the calculated root is the same as the input root
-    root === out_root;
+    component a = ForceEqual();
+    a.in[0] <== root;
+    a.in[1] <== out_root;
 }
 
 

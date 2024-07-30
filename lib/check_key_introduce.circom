@@ -25,10 +25,13 @@ template RetrieveKeyIntroduce1(length, start_key_byte){
     signal input plaintext[length];
     signal output out[32];
 
+    component iseq[32];
     var j = start_key_byte;
     for(var i = 0; i < 32; i++){
         out[i] <== plaintext[j];
-        out[i] - plaintext[j] === 0; // necessary?
+        iseq[i] = ForceEqual();
+        iseq[i].in[0] <== out[i];
+        iseq[i].in[1] <== plaintext[j];
         j++;
     }
 }
@@ -45,20 +48,18 @@ template CheckKeyIntroduce1(length, start_key_byte){
     rvp_key_text <== ret_key.out;
 
     // Check that ONION_KEY_TYPE is 1 ([1])
-    component iseq1 = IsEqual();
+    component iseq1 = ForceEqual();
     iseq1.in[0] <== plaintext[start_key_byte - 3];
     iseq1.in[1] <== 1;
-    iseq1.out === 1;
 
     // Check that ONION_KEY_LEN is 32 ([0,32])
     component isz = IsZero();
     isz.in <== plaintext[start_key_byte - 2];
-    isz.out === 1;
+    (isz.out - 1)*(isz.out - 1) === 0;
 
-    component iseq2 = IsEqual();
+    component iseq2 = ForceEqual();
     iseq2.in[0] <== plaintext[start_key_byte - 1];
     iseq2.in[1] <== 32;
-    iseq2.out === 1;
 
     // Check that the correct rvp_key is inside the plaintext
     // We assume that the RVP key is written in LE in the plaintext, so no additional steps are required

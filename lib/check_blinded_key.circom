@@ -46,7 +46,7 @@ template CheckBlindedKey(){
     signal KEYBLIND_STRING[9] <== [100, 110, 105, 108, 98, 45, 121, 101, 107];
 
     // Obtain the input to the hash (in LE)
-    component fuse_arrays = FuseAllArrays(8,8,9,158,32,29);
+    component fuse_arrays = Join6Arrays(8,8,9,158,32,29);
 
     /*    
     h = H(BLIND_STRING | A | s | B | N)
