@@ -106,4 +106,4 @@ template RVP(depth, plaintext_length, start_key_byte){
     iseq.array2 <== cipher.out;
 }
 
-component main {public [blinded_key, encrypted]} = RVP(2, 192, 26);
+component main {public [encrypted]} = RVP(2, 192, 26);
