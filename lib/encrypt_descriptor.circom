@@ -70,10 +70,10 @@ template AddPadding(plaintext_length, padding){
     }
 
     for(var i = 0; i < padding; i++){
-        isz[j] = IsZero();
+        isz[i] = IsZero();
         out[j] <== 0;
-        isz[j].in <== out[j];
-        (isz[j].out - 1)*(isz[j].out - 1) === 0;
+        isz[i].in <== out[j];
+        (isz[i].out - 1)*(isz[i].out - 1) === 0;
         j++;
     }
 }
