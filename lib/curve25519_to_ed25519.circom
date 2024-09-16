@@ -2,7 +2,7 @@ pragma circom 2.0.0;
 
 include "hash_circuits/keccak/sha3_bytes.circom";
 include "ed25519_circom/binsub.circom";
-//include "ed25519_circom/modulus.circom";
+include "utils.circom";
 include "ed25519_circom/inversemodulo.circom";
 include "circomlib/bitify.circom";
 include "ed25519_circom/pointcompress.circom";
@@ -11,13 +11,65 @@ include "ed25519_circom/chunkedsub.circom";
 include "ed25519_circom/chunkedadd.circom";
 include "ed25519_circom/modinv.circom";
 include "ed25519_circom/chunkedmul.circom";
-//include "ed25519_circom/verify.circom";
+
+/*
+Converts a Curve25519 public key into the corresponding Ed25519 public key 
+The sign of the Ed25519 public key must be passed as an input
+*/
 
 
-template Main(){
+// P[3] --> Bits (LE)
+/*
+template Dechunk(size){
+    signal input chunk[size];
+    signal output out[size*85];
+
+    component n2b[size];
+    var z = 0;
+    for(var i = 0; i < size; i++){
+        n2b[i] = Num2Bits(85);
+        n2b[i].in <== chunk[i];
+        for (var j = 0; j < 85; j++){
+            out[z] <== n2b[i].out[j];
+            z++; 
+        }
+    }
+}
+*/
+
+// Transforms the Ed25519 public key from P[3] format to bits (LE) and adds x sign
+template KeyToBits(){
+    signal input sign;
+    signal input chunk[3];
+    signal output out[256];
+
+    // Key in P[3] to bits
+    component n2b[3];
+    var z = 0;
+    for(var i = 0; i < 3; i++){
+        n2b[i] = Num2Bits(85);
+        n2b[i].in <== chunk[i];
+        for (var j = 0; j < 85; j++){
+            out[z] <== n2b[i].out[j];
+            z++; 
+        }
+    }
+    // Check that the sign is 0 or 1
+    sign * (sign - 1) === 0;
+
+    // Add sign to MSB
+    out[255] <== sign;
+    component fq = ForceEqual();
+    fq.in[0] <== out[255];
+    fq.in[1] <== sign;
+}
+
+
+template CurveToEd(){
     signal input curve_key[32];
+    signal input sign;
 
-    //signal output ed25519_key[255]; 
+    signal output ed25519_key[256]; 
 
     // 1 in base 2^85
     signal one[3] <== [1, 0, 0];
@@ -64,23 +116,18 @@ template Main(){
     inv.in <== denominator;
     denominator_inv <== inv.out;
 
-    // (u-1)/(u+1) % p --> (u-1)*inv(u+1) % p
-    signal result[3];
+    // Find (u-1)/(u+1) % p --> (u-1)*inv(u+1) % p
+    signal chunk_result[3];
     component mul = ChunkedMul(3,3,85);
     mul.in1 <== numerator;
     mul.in2 <== denominator_inv;
     component mod3 = ModulusWith25519Chunked51(6);
     mod3.in <== mul.out;
-    result <== mod3.out;
+    chunk_result <== mod3.out;
 
-    // Convert to bits
-
-
-    // Place sign (x bit, 0 or 1)
-
-
-    // Ed25519 key --> Bytes (LE)
-
+    // Convert to bits (LE) & add sign
+    component k2b = KeyToBits();
+    k2b.chunk <== chunk_result;
+    k2b.sign <== sign;
+    ed25519_key <== k2b.out;
 }
-
-component main = Main();
