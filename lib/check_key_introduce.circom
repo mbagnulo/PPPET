@@ -2,9 +2,12 @@ pragma circom 2.0.0;
 
 include "utils.circom";
 include "circomlib/comparators.circom";
+include "curve25519_to_ed25519.circom";
 
 /*
 Checks that the hidden service key is inside the INTRODUCE1 cell encrypted plaintext
+The key is a public Curve25519 key, while the key used for signing is Ed25519. Therefore,
+we need to convert the Curve25519 key into Ed25519 to check they are the same.
 
 The plaintext has the structure:
     RENDEZVOUS_COOKIE[20 bytes]
@@ -39,13 +42,19 @@ template RetrieveKeyIntroduce1(length, start_key_byte){
 // start_key_byte: First byte of the key in the ONION_KEY field
 template CheckKeyIntroduce1(length, start_key_byte){
     signal input plaintext[length]; // Plaintext in bytes (BE)
-    signal input rvp_key[32]; // RVP key in bytes (LE)
+    signal input rvp_key[256]; // RVP Ed25519 key in bits (LE)
 
     // Retreive key from plaintext
     signal rvp_key_text[32];
     component ret_key = RetrieveKeyIntroduce1(length, start_key_byte);
     ret_key.plaintext <== plaintext;
     rvp_key_text <== ret_key.out;
+
+    // Transform Curve25519 key found in INTRODUCE1 plaintext into Ed25519
+    component to_ed = CurveToEd();
+    to_ed.curve_key <== rvp_key_text;
+    to_ed.sign <== rvp_key[255]; // Sign is MSB of Ed25519 key
+
 
     // Check that ONION_KEY_TYPE is 1 ([1])
     component iseq1 = ForceEqual();
@@ -64,8 +73,7 @@ template CheckKeyIntroduce1(length, start_key_byte){
     // Check that the correct rvp_key is inside the plaintext
     // We assume that the RVP key is written in LE in the plaintext, so no additional steps are required
     // (would be nice to verify, but shouldn't affect the constraint number anyways)
-
-    component iseq_arrays = IsEqualArrays(32);
+    component iseq_arrays = IsEqualArrays(256);
     iseq_arrays.array1 <== rvp_key;
-    iseq_arrays.array2 <== rvp_key_text;
+    iseq_arrays.array2 <== to_ed.ed25519_key;
 }

@@ -46,28 +46,18 @@ template RVP(depth, plaintext_length, start_key_byte){
     unpack.bytes <== kp_hs_id;
     kp_bits <== unpack.bits;
 
-    // Transform IP key into bits
+    // Transform RVP Ed25519 key into bits
     signal rvp_key_bits[256];
     component unpack2 = UnpackBytes(32);
     unpack2.bytes <== rvp_key;
     rvp_key_bits <== unpack2.bits;
 
-    
     // Check that kp_hs_id is on IP allow list
     component merkle_tree = CheckMerkleTree(depth);
     merkle_tree.root <== root;
     merkle_tree.kp_bits <== kp_bits;
     merkle_tree.path <== path;
     merkle_tree.path_indexes <== path_indexes;
-
-    // Check that input blinded key corresponds to the one calculated with kp_hs_id
-    component check_bkey = CheckBlindedKey();
-    check_bkey.kp_bytes <== kp_hs_id;
-    check_bkey.kp_bits <== kp_bits;
-    check_bkey.kp_base_85 <== kp_base_85;
-    check_bkey.bkey_bytes <== blinded_key;
-    check_bkey.period_number <== period_number;
-    check_bkey.period_length <== period_length;
 
     // Verify root signature with RVP key
     component verify = Ed25519Verifier(256);
@@ -80,11 +70,18 @@ template RVP(depth, plaintext_length, start_key_byte){
 
     1 === verify.out;
 
+    // Check that Ed25519 key in P[4][3] format corresponds to the representation in bits
+    component compress = PointCompress(); // P[4][3] -> Bits (little endian)
+    compress.P <== PointA;
+    component iseq_key = IsEqualArrays(256);
+    iseq_key.array1 <== rvp_key_bits;
+    iseq_key.array2 <== compress.out;
+
     // Check that the RVP key is inside the plaintext
     component check_key = CheckKeyIntroduce1(plaintext_length, start_key_byte);
     check_key.plaintext <== plaintext;
-    check_key.rvp_key <== rvp_key;
-    
+    check_key.rvp_key <== rvp_key_bits;
+
     // Generate encryption key
     signal key[256];
     component calculate_key = GenerateKeyIntroduce1();
