@@ -90,7 +90,7 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     component compress = PointCompress(); // P[4][3] -> Bits (little endian)
     compress.P <== PointA;
     component iseq_key = IsEqualArrays(256);
-    iseq_key.array1 <== rvp_key_bits;
+    iseq_key.array1 <== ip_key_bits;
     iseq_key.array2 <== compress.out;
 
     // Verify signature
