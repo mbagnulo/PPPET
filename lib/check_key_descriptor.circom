@@ -3,6 +3,8 @@ pragma circom 2.0.0;
 include "utils.circom";
 include "circomlib/comparators.circom";
 include "base64/base64.circom";
+include "curve25519_to_ed25519.circom";
+
 /*
 Checks that the IP key is inside the inner layer plaintext of the descriptor 
 
@@ -10,6 +12,9 @@ Plaintext input is assumed to be in Big Endian and decoded with ASCII.
 
 We are assuming that the key is written in the plaintext in little endian as its the
 standard for Curve25519 (If possible check if this is right)
+
+Since Ed25519 must be used to verify the signature, we convert the Curve25519 key into
+Ed25519 before comparing it to the one passed as input
 */
 
 // Check that the proper field ("onion-key" SP "ntor" SP) is before the key
@@ -50,13 +55,13 @@ template RetrieveKey(start_key_byte, plaintext_length){
 
 template CheckKeyDescriptor(start_key_byte, plaintext_length){
     signal input plaintext[plaintext_length];
-    signal input ip_key[32]; // IP key in bytes (LE)
+    signal input ip_key[256]; // IP Ed25519 public key in bits (LE)
 
     // Check that the key is in the proper field ("onion-key" SP "ntor" SP key NL)
     component check_field = CheckField(start_key_byte, plaintext_length);
     check_field.plaintext <== plaintext;
 
-    // Retrieve IP key (Base64 in ASCII)
+    // Retrieve public Curve25519 IP key (Base64 in ASCII)
     signal ip_key_base64[44];
     component get_key = RetrieveKey(start_key_byte, plaintext_length);
     get_key.plaintext <== plaintext;
@@ -70,10 +75,13 @@ template CheckKeyDescriptor(start_key_byte, plaintext_length){
     base64.in <== ip_key_base64;
     plaintext_key <== base64.out;
 
-    // Compare IP key and key found in plaintext
-    component iseq = IsEqualArrays(32);
-    iseq.array1 <== ip_key;
-    iseq.array2 <== plaintext_key;
-}
+    // Transform the Curve25519 key into Ed25519
+    component to_ed = CurveToEd();
+    to_ed.curve_key <== plaintext_key;
+    to_ed.sign <== ip_key[255]; // Sign is MSB of Ed25519 key
 
-//component main = CheckKeyDescriptor(80,190);
+    // Compare IP key and key found in plaintext
+    component iseq = IsEqualArrays(256);
+    iseq.array1 <== ip_key;
+    iseq.array2 <== to_ed.ed25519_key;
+}

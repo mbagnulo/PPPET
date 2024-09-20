@@ -86,6 +86,13 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     check_bkey.period_number <== period_number;
     check_bkey.period_length <== period_length; 
     
+    // Check P[4][3] representation of Ed25519 key corresponds to the bytes representation
+    component compress = PointCompress(); // P[4][3] -> Bits (little endian)
+    compress.P <== PointA;
+    component iseq_key = IsEqualArrays(256);
+    iseq_key.array1 <== rvp_key_bits;
+    iseq_key.array2 <== compress.out;
+
     // Verify signature
     component verify = Ed25519Verifier(256);
     verify.msg <== root_bits;
@@ -100,7 +107,7 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     // Check that IP key is in descriptor
     component check_key = CheckKeyDescriptor(start_key_byte, inner_length);
     check_key.plaintext <== inner_plaintext;
-    check_key.ip_key <== ip_key;
+    check_key.ip_key <== ip_key_bits;
 
     // Obtain keys and IVs for encrpytion
     signal inner_key[256];
@@ -153,7 +160,6 @@ template IP(depth, start_key_byte, inner_length, outer_length, start_encrypted_b
     component comp_desc_2 = CompareDescriptor(outer_length + padding);
     comp_desc_2.b64_field <== superencrypted;
     comp_desc_2.enc_result <== encrypted_outer_layer;
-
 }
 
-component main {public [blinded_key, superencrypted]} = IP(2,80,2400, 4752, 1532);
+component main {public [blinded_key, superencrypted]} = IP(2,80,1008, 4752, 1532);
