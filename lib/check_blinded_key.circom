@@ -90,12 +90,6 @@ template CheckBlindedKey(){
     signal input period_number[8];
     signal input period_length[8];
     
-    signal h[32];
-    signal h_bits[256];
-    signal h_clamped[255];
-    signal kp_bits_1[256];
-    signal kp_bits_2[256];
-
     component compress[2]; // P[4][3] -> Bits (little endian)
     component iseq[2];
     component unpack[2];
@@ -115,23 +109,19 @@ template CheckBlindedKey(){
     preimage.period_number <== period_number;
     preimage.period_length <== period_length;
 
-    // Find h = H("BLIND_STRING" | Kp_hs_id | ...)
+    // Find h = H("BLIND_STRING" | Kp_hs_id | ...) in bits
     component sha3 = SHA3_256_bytes(244);
-    sha3.inp_bytes <== preimage.out;
-    h <== sha3.out_bytes;
-
     unpack[0] = UnpackBytes(32);
-    unpack[0].bytes <== h;
-    h_bits <== unpack[0].bits;
+    sha3.inp_bytes <== preimage.out;
+    unpack[0].bytes <== sha3.out_bytes;
 
     // Perform clamping on h
     component clamp = Clamping();
-    clamp.h <== h_bits;
-    h_clamped <== clamp.h_clamped;
+    clamp.h <== unpack[0].bits;
     
     // Perform scalar multiplication
     component scalarmul = ScalarMul();
-    scalarmul.s <== clamp.h_clamped;
+    scalarmul.s <== clamp.out;
     scalarmul.P <== kp_base_85;
 
     // Result to bits
@@ -144,7 +134,7 @@ template CheckBlindedKey(){
 
     // Compare input blinded key to the one we've just calculated
     // Generates an error if they are not equal
-    iseq[1] = IsEqualArrays(256);
+    iseq[1] = ForceEqualArrays(256);
     iseq[1].array1 <== compress[1].out;
     iseq[1].array2 <== unpack[1].bits;
 }
