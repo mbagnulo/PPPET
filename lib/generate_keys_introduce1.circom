@@ -45,18 +45,18 @@ template GenerateInfo(){
     signal input blinded_key[32];
     signal input kp_hs_id[32];
 
-    // "tor-hs-ntor-curve25519-sha3-256-1:hs_key_expand" in bytes (LE)
-    signal m_hsexpand[47] <== [100, 110, 97, 112, 120, 101, 95, 121, 101, 107, 95, 115, 104, 58, 49, 45, 54, 53, 50, 45, 51, 97, 104, 115, 45, 57, 49, 53, 53, 50, 101, 118, 114, 117, 99, 45, 114, 111, 116, 110, 45, 115, 104, 45, 114, 111, 116];
+    // "tor-hs-ntor-curve25519-sha3-256-1:hs_key_expand" in bytes (ASCII)
+    signal m_hsexpand[47] <== [116, 111, 114, 45, 104, 115, 45, 110, 116, 111, 114, 45, 99, 117, 114, 118, 101, 50, 53, 53, 49, 57, 45, 115, 104, 97, 51, 45, 50, 53, 54, 45, 49, 58, 104, 115, 95, 107, 101, 121, 95, 101, 120, 112, 97, 110, 100];
 
-    // "credential" and "subcredential" converted to bytes (LE) with ASCII
-    signal credential[10] <== [108, 97, 105, 116, 110, 101, 100, 101, 114, 99];
-    signal subcredential[13] <== [108, 97, 105, 116, 110, 101, 100, 101, 114, 99, 98, 117, 115];
+    // "credential" and "subcredential" converted to bytes (ASCII)
+    signal credential[10] <== [99, 114, 101, 100, 101, 110, 116, 105, 97, 108];
+    signal subcredential[13] <== [115, 117, 98, 99, 114, 101, 100, 101, 110, 116, 105, 97, 108];
 
     // Find N_hs_cred
     signal n_hs_cred[32];
-    component j2a = Join2Arrays(32,10);
-    j2a.array1 <== kp_hs_id;
-    j2a.array2 <== credential;
+    component j2a = Join2Arrays(10,32);
+    j2a.array1 <== credential;
+    j2a.array2 <== kp_hs_id;
     
     component sha3_1 = SHA3_256_bytes(42);
     sha3_1.inp_bytes <== j2a.out_array;
@@ -64,21 +64,21 @@ template GenerateInfo(){
 
     // Find N_hs_subcred
     signal n_hs_subcred[32];
-    component j3a = Join3Arrays(32, 32, 13);
-    j3a.array1 <== blinded_key;
+    component j3a = Join3Arrays(13, 32, 32);
+    j3a.array1 <== subcredential;
     j3a.array2 <== n_hs_cred;
-    j3a.array3 <== subcredential;
+    j3a.array3 <== blinded_key;
 
     component sha3_2 = SHA3_256_bytes(77);
     sha3_2.inp_bytes <== j3a.out_array;
     n_hs_subcred <== sha3_2.out_bytes;
 
-    // Calculate info = m_hsexpand | N_hs_subcred (LE)
+    // Calculate info = m_hsexpand | N_hs_subcred
     signal output info[79];
 
-    component j2a_2 = Join2Arrays(32,47);
-    j2a_2.array1 <== n_hs_subcred;
-    j2a_2.array2 <== m_hsexpand;
+    component j2a_2 = Join2Arrays(47,32);
+    j2a_2.array1 <== m_hsexpand;
+    j2a_2.array2 <== n_hs_subcred;
     info <== j2a_2.out_array;
 }
 
@@ -87,10 +87,10 @@ template GenerateKeyIntroduce1(){
     signal input blinded_key[32];
     // intro_secret_hs_input = EXP(B,x) | AUTH_KEY | X | B | "tor-hs-ntor-curve25519-sha3-256-1"
     var length = 129; // 32 + 32 + 32 + 33
-    signal input intro_secret_hs_input[length]; // intro_secret_hs_input in bytes (LE)
+    signal input intro_secret_hs_input[length]; // intro_secret_hs_input in bytes
 
-    // "tor-hs-ntor-curve25519-sha3-256-1:hs_key_extract" in bytes (LE)
-    signal t_hsenc[48] <== [116, 99, 97, 114, 116, 120, 101, 95, 121, 101, 107, 95, 115, 104, 58, 49, 45, 54, 53, 50, 45, 51, 97, 104, 115, 45, 57, 49, 53, 53, 50, 101, 118, 114, 117, 99, 45, 114, 111, 116, 110, 45, 115, 104, 45, 114, 111, 116];
+    // "tor-hs-ntor-curve25519-sha3-256-1:hs_key_extract" in bytes (ASCII)
+    signal t_hsenc[48] <== [116, 111, 114, 45, 104, 115, 45, 110, 116, 111, 114, 45, 99, 117, 114, 118, 101, 50, 53, 53, 49, 57, 45, 115, 104, 97, 51, 45, 50, 53, 54, 45, 49, 58, 104, 115, 95, 107, 101, 121, 95, 101, 120, 116, 114, 97, 99, 116];
 
     // Generate "info" parameter
     signal info[79];
@@ -102,10 +102,11 @@ template GenerateKeyIntroduce1(){
     // Generate input for keys = KDF(...) (LE)
     var kdf_length = 79 + 48 + length;
     signal kdf_input[kdf_length];
-    component j3a = Join3Arrays(79,48,length);
-    j3a.array1 <== info;
+
+    component j3a = Join3Arrays(length,48,79);
+    j3a.array1 <== intro_secret_hs_input;
     j3a.array2 <== t_hsenc;
-    j3a.array3 <== intro_secret_hs_input;
+    j3a.array3 <== info;
     kdf_input <== j3a.out_array;
 
     // Generate keys in bits (LE)
@@ -118,5 +119,4 @@ template GenerateKeyIntroduce1(){
     component unpack = UnpackBytes(32);
     unpack.bytes <== shake256.out_bytes;
     key <== unpack.bits;
-
 }

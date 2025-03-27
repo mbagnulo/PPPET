@@ -24,11 +24,11 @@ An IV of all 0s is used for encryption
 
 template EncryptIntroduce1(plaintext_length){
     signal input client_pk[256]; // CLIENT_PK in bits (LE)
-    signal input plaintext[plaintext_length]; // Plaintext in bytes (LE)
+    signal input plaintext[plaintext_length]; // Plaintext in bytes
     signal input mac[256]; // MAC in bits (LE)
     signal input key[256]; // Encryption key in bits (LE)
 
-    // Transform plaintext into bits (LE)
+    // Transform plaintext into bits
     var bit_length = plaintext_length * 8;
     signal plaintext_bits[bit_length];
     component unpack = UnpackBytes(plaintext_length);
@@ -52,7 +52,7 @@ template EncryptIntroduce1(plaintext_length){
 
     // Encrypt all the bits
     signal output out[n_bits];
-    // We use an IV of all 0s
+    // Tor uses an IV of all 0s for this part
     signal iv[128] <== [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     component aes = AES256CTR(n_bits);
     aes.in <== encrypt_input;

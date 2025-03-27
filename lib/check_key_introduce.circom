@@ -73,7 +73,7 @@ template CheckKeyIntroduce1(length, start_key_byte){
     // Check that the correct rvp_key is inside the plaintext
     // We assume that the RVP key is written in LE in the plaintext, so no additional steps are required
     // (would be nice to verify, but shouldn't affect the constraint number anyways)
-    component iseq_arrays = IsEqualArrays(256);
+    component iseq_arrays = ForceEqualArrays(256);
     iseq_arrays.array1 <== rvp_key;
     iseq_arrays.array2 <== to_ed.ed25519_key;
 }
