@@ -18,7 +18,7 @@ template ForceEqual(){
 // Performs clamping to the blinding factor according to Ed25519 documentation
 template Clamping(){
     signal input h[256]; // h is in little endian
-    signal output h_clamped[255];
+    signal output out[255];
 
     component isz[3];
     component iseq[251];
@@ -26,8 +26,8 @@ template Clamping(){
     // Bits 1 (LSB), 2, 3 ==> 0 
     for (var i = 0; i<3; i++){
         isz[i] = IsZero();
-        h_clamped[i] <== 0;
-        isz[i].in <== h_clamped[i];
+        out[i] <== 0;
+        isz[i].in <== out[i];
         (isz[i].out - 1) * (isz[i].out - 1) === 0;
     }
 
@@ -35,14 +35,14 @@ template Clamping(){
     var j = 0;
     for (var i = 3; i < 254; i++){
         iseq[j] = ForceEqual();
-        h_clamped[i] <== h[i];
+        out[i] <== h[i];
         iseq[j].in[0] <== h[i];
-        iseq[j].in[1] <== h_clamped[i];
+        iseq[j].in[1] <== out[i];
         j++;
     }
 
     // Bit 255 ==> 1
-    h_clamped[254] <== h[254] + 1 - h[254]*1; // OR 1
+    out[254] <== h[254] + 1 - h[254]*1; // OR 1
 }
 
 

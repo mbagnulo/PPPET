@@ -100,7 +100,7 @@ template CheckBlindedKey(){
     
     compress[0] = PointCompress();
     compress[0].P <== kp_base_85;
-    iseq[0] = IsEqualArrays(256);
+    iseq[0] = ForceEqualArrays(256);
     iseq[0].array1 <== kp_bits;
     iseq[0].array2 <== compress[0].out;
 
