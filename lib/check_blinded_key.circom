@@ -6,13 +6,87 @@ include "hash_circuits/keccak/sha3_bytes.circom";
 include "utils.circom";
 include "circomlib/comparators.circom";
 
+/*
+    Checks that input blinded key is properly derived from kp_hs_id
 
+    h = SHA3_256(BLIND_STRING | kp_hs_id | s | B | N)
+    BLIND_STRING = "Derive temporary signing key" | INT_1(0)
+    N = "key-blind" | INT_8(period-number) | INT_8(period_length)
+    B = "(1511[...]2202, 4631[...]5960)"
+    Optional secret s is omitted
+    
+    Apply claming to h according to Ed25519 specification
+    blinded_key = h*A
+*/
+
+template CreateBKHashInput(){
+    signal input kp_hs_id[32];
+    signal input period_number[8];
+    signal input period_length[8];
+    signal output out[244];
+
+    //"Derive temporary signing key\0" encoded with ASCII
+    var BLIND_STRING[29] = [68, 101, 114, 105, 118, 101, 32, 116, 101, 109, 112, 111, 114, 97, 114, 121, 32, 115, 105, 103, 110, 105, 110, 103, 32, 107, 101, 121, 0];
+    //"(1511...2202, 4631...5960)" encoded with ASCII
+    var ED22519_BASEPOINT[158] = [40, 49, 53, 49, 49, 50, 50, 50, 49, 51, 52, 57, 53, 51, 53, 52, 48, 48, 55, 55, 50, 53, 48, 49, 49, 53, 49, 52, 48, 57, 53, 56, 56, 53, 51, 49, 53, 49, 49, 52, 53, 52, 48, 49, 50, 54, 57, 51, 48, 52, 49, 56, 53, 55, 50, 48, 54, 48, 52, 54, 49, 49, 51, 50, 56, 51, 57, 52, 57, 56, 52, 55, 55, 54, 50, 50, 48, 50, 44, 32, 52, 54, 51, 49, 54, 56, 51, 53, 54, 57, 52, 57, 50, 54, 52, 55, 56, 49, 54, 57, 52, 50, 56, 51, 57, 52, 48, 48, 51, 52, 55, 53, 49, 54, 51, 49, 52, 49, 51, 48, 55, 57, 57, 51, 56, 54, 54, 50, 53, 54, 50, 50, 53, 54, 49, 53, 55, 56, 51, 48, 51, 51, 54, 48, 51, 49, 54, 53, 50, 53, 49, 56, 53, 53, 57, 54, 48, 41];
+    //"key-blind" encoded with ASCII
+    var KEYBLIND_STRING[9] = [107, 101, 121, 45, 98, 108, 105, 110, 100];
+
+    // Obtain the input to the hash
+    //component fuse_arrays = Join6Arrays(29,32,158,9,8,8)
+    component iseq[29 + 32 + 158 + 9 + 8 + 8];
+
+    // Join arrays + enforce equality with quadratic constraint
+    var j = 0;
+    for(var i = 0; i < 29; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== BLIND_STRING[i];
+        iseq[j].in[0] <== BLIND_STRING[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+    for(var i = 0; i < 32; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== kp_hs_id[i];
+        iseq[j].in[0] <== kp_hs_id[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+    for(var i = 0; i < 158; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== ED22519_BASEPOINT[i];
+        iseq[j].in[0] <== ED22519_BASEPOINT[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+    for(var i = 0; i < 9; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== KEYBLIND_STRING[i];
+        iseq[j].in[0] <== KEYBLIND_STRING[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+    for(var i = 0; i < 8; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== period_number[i];
+        iseq[j].in[0] <== period_number[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+    for(var i = 0; i < 8; i++){
+        iseq[j] = ForceEqual();
+        out[j] <== period_length[i];
+        iseq[j].in[0] <== period_length[i];
+        iseq[j].in[1] <== out[j];
+        j++;
+    }
+}
 
 template CheckBlindedKey(){
     signal input kp_bytes[32];
     signal input kp_bits[256];
     signal input kp_base_85[4][3];
-    signal input bkey_bytes[32];
+    signal input blinded_key[32];
     signal input period_number[8];
     signal input period_length[8];
     
@@ -21,58 +95,34 @@ template CheckBlindedKey(){
     signal h_clamped[255];
     signal kp_bits_1[256];
     signal kp_bits_2[256];
-    signal bkey_base_85[4][3];
 
-    component compress = PointCompress(); // P[4][3] -> Bits (little endian)
-    component eq_arrays = IsEqualArrays(256);
+    component compress[2]; // P[4][3] -> Bits (little endian)
+    component iseq[2];
+    component unpack[2];
 
     // Check that kp_bits === kp_base_85
     // We don't check that kp_bits === kp_bytes because we calculate kp_bits from
     // kp_bytes in the main circuit, so we already know
+    
+    compress[0] = PointCompress();
+    compress[0].P <== kp_base_85;
+    iseq[0] = IsEqualArrays(256);
+    iseq[0].array1 <== kp_bits;
+    iseq[0].array2 <== compress[0].out;
 
-    compress.P <== kp_base_85;
-    kp_bits_2 <== compress.out;
-
-    eq_arrays.array1 <== kp_bits;
-    eq_arrays.array2 <== kp_bits_2;
-
-    //"Derive temporary signing key\0" encoded with ASCII and in LE
-    signal BLIND_STRING[29] <== [0, 121, 101, 107, 32, 103, 110, 105, 110, 103, 105, 115, 32, 121, 114, 97, 114, 111, 112, 109, 101, 116, 32, 101, 118, 105, 114, 101, 68];
-
-    //"(1511...2202, 4631...5960)" encoded with ASCII and in LE
-    signal ED22519_BASEPOINT[158] <== [41, 48, 54, 57, 53, 53, 56, 49, 53, 50, 53, 54, 49, 51, 48, 54, 51, 51, 48, 51, 56, 55, 53, 49, 54, 53, 50, 50, 54, 53, 50, 54, 54, 56, 51, 57, 57, 55, 48, 51, 49, 52, 49, 51, 54, 49, 53, 55, 52, 51, 48, 48, 52, 57, 51, 56, 50, 52, 57, 54, 49, 56, 55, 52, 54, 50, 57, 52, 57, 54, 53, 51, 56, 54, 49, 51, 54, 52, 32, 44, 50, 48, 50, 50, 54, 55, 55, 52, 56, 57, 52, 57, 51, 56, 50, 51, 49, 49, 54, 52, 48, 54, 48, 50, 55, 53, 56, 49, 52, 48, 51, 57, 54, 50, 49, 48, 52, 53, 52, 49, 49, 53, 49, 51, 53, 56, 56, 53, 57, 48, 52, 49, 53, 49, 49, 48, 53, 50, 55, 55, 48, 48, 52, 53, 51, 53, 57, 52, 51, 49, 50, 50, 50, 49, 49, 53, 49, 40];
-
-    //"key-blind" encoded with ASCII and in LE
-    signal KEYBLIND_STRING[9] <== [100, 110, 105, 108, 98, 45, 121, 101, 107];
-
-    // Obtain the input to the hash (in LE)
-    component fuse_arrays = Join6Arrays(8,8,9,158,32,29);
-
-    /*    
-    h = H(BLIND_STRING | A | s | B | N)
-    BLIND_STRING = "Derive temporary signing key" | INT_1(0)
-    N = "key-blind" | INT_8(period-number) | INT_8(period_length)
-    B = "(1511[...]2202, 4631[...]5960)"
-    */
-
-    fuse_arrays.array1 <== period_length;
-    fuse_arrays.array2 <== period_number;
-    fuse_arrays.array3 <== KEYBLIND_STRING;
-    fuse_arrays.array4 <== ED22519_BASEPOINT;
-    fuse_arrays.array5 <== kp_bytes;
-    fuse_arrays.array6 <== BLIND_STRING;
-
-    signal hash_input[244];
-    hash_input <== fuse_arrays.out_array;
+    component preimage = CreateBKHashInput();
+    preimage.kp_hs_id <== kp_bytes;
+    preimage.period_number <== period_number;
+    preimage.period_length <== period_length;
 
     // Find h = H("BLIND_STRING" | Kp_hs_id | ...)
     component sha3 = SHA3_256_bytes(244);
-    sha3.inp_bytes <== hash_input;
+    sha3.inp_bytes <== preimage.out;
     h <== sha3.out_bytes;
 
-    component unpack_2 = UnpackBytes(32);
-    unpack_2.bytes <== h;
-    h_bits <== unpack_2.bits;
+    unpack[0] = UnpackBytes(32);
+    unpack[0].bytes <== h;
+    h_bits <== unpack[0].bits;
 
     // Perform clamping on h
     component clamp = Clamping();
@@ -81,25 +131,22 @@ template CheckBlindedKey(){
     
     // Perform scalar multiplication
     component scalarmul = ScalarMul();
-    scalarmul.s <== h_clamped;
+    scalarmul.s <== clamp.h_clamped;
     scalarmul.P <== kp_base_85;
-    bkey_base_85 <== scalarmul.sP;
 
-    // Compare scalar multiplication result with input blinded key
-    component unpack_3 = UnpackBytes(32);
-    component compress_2 = PointCompress();
-    signal bkey_bits_1[256];
-    signal bkey_bits_2[256];
-
-    compress_2.P <== bkey_base_85;
-    bkey_bits_1 <== compress_2.out;
+    // Result to bits
+    compress[1] = PointCompress();
+    compress[1].P <== scalarmul.sP;
     
-    unpack_3.bytes <== bkey_bytes;
-    bkey_bits_2 <== unpack_3.bits;
+    // Input blinded key to bits
+    unpack[1] = UnpackBytes(32);
+    unpack[1].bytes <== blinded_key;
 
-    component eq_arrays_2 = IsEqualArrays(256);
-    eq_arrays_2.array1 <== bkey_bits_1;
-    eq_arrays_2.array2 <== bkey_bits_2;
+    // Compare input blinded key to the one we've just calculated
+    // Generates an error if they are not equal
+    iseq[1] = IsEqualArrays(256);
+    iseq[1].array1 <== compress[1].out;
+    iseq[1].array2 <== unpack[1].bits;
 }
 
 // component main {public [bkey_bytes, period_number, period_length]}= CheckBlindedKey();
