@@ -64,8 +64,6 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
     unpack[1].bytes <== rvp_key;
     rvp_key_bits <== unpack[1].bits;
 
-    /*
-
     // Verify IP and RVP policy
 
     merkle_tree[0] = CheckMerkleTree(ip_depth);
@@ -99,14 +97,11 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
     iseq[0] = ForceEqualArrays(256);
     iseq[0].array1 <== rvp_key_bits;
     iseq[0].array2 <== compress.out;
-    */
 
     // Check that the RVP key is inside the plaintext
-    /*
     component check_key = CheckKeyIntroduce1(plaintext_length, start_key_byte);
     check_key.plaintext <== plaintext;
     check_key.rvp_key <== rvp_key_bits;
-    */
 
     // Generate encryption key
     signal key[256];
@@ -129,4 +124,4 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
     iseq[1].array2 <== cipher.out;
 }
 
-component main {public [ip_root, encrypted]} = IP(14, 14, 512, 26);
+component main {public [ip_root, encrypted]} = IP(14, 14, 192, 26);
