@@ -4,7 +4,7 @@ include "lib/check_blinded_key.circom";
 include "lib/check_merkle_tree.circom";
 
 template HSDir(depth){
-    signal input kp_hs_id[32]; // kp_hs_id as an array of 32 bytes
+    signal input kp_hs_id[32]; // kp_hs_id in bytes
 
     signal input root; // Root of HDir's merkle tree
     signal input path_indexes[depth]; // Path selector to choose which direction to hash
@@ -28,8 +28,7 @@ template HSDir(depth){
 
     // Check that the blinded key is the same as the one calculated with kp_hs_id
     component check_bkey = CheckBlindedKey();
-    check_bkey.kp_bytes <== kp_hs_id;
-    check_bkey.kp_bits <== unpack.bits;
+    check_bkey.kp_hs_id <== kp_hs_id;
     check_bkey.kp_base_85 <== kp_base_85;
     check_bkey.blinded_key <== blinded_key;
     check_bkey.period_number <== period_number;

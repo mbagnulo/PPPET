@@ -19,6 +19,38 @@ include "circomlib/comparators.circom";
     blinded_key = h*A
 */
 
+// Performs clamping to the blinding factor according to Ed25519 documentation
+template Clamping(){
+    signal input h[256]; // h is in little endian
+    signal output out[255];
+
+    component isz[3];
+    component iseq[251];
+
+    // Bits 1 (LSB), 2, 3 ==> 0 
+    for (var i = 0; i<3; i++){
+        isz[i] = IsZero();
+        out[i] <== 0;
+        isz[i].in <== out[i];
+        (isz[i].out - 1) * (isz[i].out - 1) === 0;
+    }
+
+    // Copy bits
+    var j = 0;
+    for (var i = 3; i < 254; i++){
+        iseq[j] = ForceEqual();
+        out[i] <== h[i];
+        iseq[j].in[0] <== h[i];
+        iseq[j].in[1] <== out[i];
+        j++;
+    }
+
+    // Bit 255 ==> 1
+    out[254] <== 1;
+    0 === (out[254] - 1)*(out[254] - 1);
+}
+
+
 template CreateBKHashInput(){
     signal input kp_hs_id[32];
     signal input period_number[8];
@@ -83,60 +115,51 @@ template CreateBKHashInput(){
 }
 
 template CheckBlindedKey(){
-    signal input kp_bytes[32];
-    signal input kp_bits[256];
+    signal input kp_hs_id[32];
     signal input kp_base_85[4][3];
     signal input blinded_key[32];
     signal input period_number[8];
     signal input period_length[8];
     
-    component compress[2]; // P[4][3] -> Bits (little endian)
-    component iseq[2];
-    component unpack[2];
+    // Check that kp_hs_id === kp_base_85
+    component compress_1 = PointCompress();
+    component pack_1 = PackBytes(32);
+    compress_1.P <== kp_base_85;
+    pack_1.bits <== compress_1.out;
 
-    // Check that kp_bits === kp_base_85
-    // We don't check that kp_bits === kp_bytes because we calculate kp_bits from
-    // kp_bytes in the main circuit, so we already know
-    
-    compress[0] = PointCompress();
-    compress[0].P <== kp_base_85;
-    iseq[0] = ForceEqualArrays(256);
-    iseq[0].array1 <== kp_bits;
-    iseq[0].array2 <== compress[0].out;
+    component iseq_1 = ForceEqualArrays(32);
+    iseq_1.array1 <== kp_hs_id;
+    iseq_1.array2 <== pack_1.bytes;
 
     component preimage = CreateBKHashInput();
-    preimage.kp_hs_id <== kp_bytes;
+    preimage.kp_hs_id <== kp_hs_id;
     preimage.period_number <== period_number;
     preimage.period_length <== period_length;
 
     // Find h = H("BLIND_STRING" | Kp_hs_id | ...) in bits
     component sha3 = SHA3_256_bytes(244);
-    unpack[0] = UnpackBytes(32);
+    component bytes2bits = BytesToBitsLE(32);
     sha3.inp_bytes <== preimage.out;
-    unpack[0].bytes <== sha3.out_bytes;
+    bytes2bits.in <== sha3.out_bytes;
 
     // Perform clamping on h
     component clamp = Clamping();
-    clamp.h <== unpack[0].bits;
+    clamp.h <== bytes2bits.out;
     
     // Perform scalar multiplication
     component scalarmul = ScalarMul();
     scalarmul.s <== clamp.out;
     scalarmul.P <== kp_base_85;
 
-    // Result to bits
-    compress[1] = PointCompress();
-    compress[1].P <== scalarmul.sP;
+    // Result to bytes
+    component compress_2 = PointCompress();
+    component pack_2 = PackBytes(32);
+    compress_2.P <== scalarmul.sP;
+    pack_2.bits <== compress_2.out;
     
-    // Input blinded key to bits
-    unpack[1] = UnpackBytes(32);
-    unpack[1].bytes <== blinded_key;
-
     // Compare input blinded key to the one we've just calculated
     // Generates an error if they are not equal
-    iseq[1] = ForceEqualArrays(256);
-    iseq[1].array1 <== compress[1].out;
-    iseq[1].array2 <== unpack[1].bits;
+    component iseq_2 = ForceEqualArrays(32);
+    iseq_2.array1 <== blinded_key;
+    iseq_2.array2 <== pack_2.bytes;
 }
-
-// component main {public [bkey_bytes, period_number, period_length]}= CheckBlindedKey();
