@@ -2,7 +2,6 @@ pragma circom 2.0.0;
 
 include "lib/ed25519_circom/verify.circom";
 include "lib/check_merkle_tree.circom";
-include "lib/check_blinded_key.circom";
 include "lib/check_key_introduce.circom";
 include "lib/generate_keys_introduce1.circom";
 include "lib/encrypt_introduce1.circom";
@@ -37,14 +36,7 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
 
     signal input plaintext[plaintext_length]; // INTRODUCE1 cell plaintext in bytes
     signal input intro_secret_hs_input[129]; // intro_secret_hs_input in bytes
-    signal input client_pk[256]; // CLIENT_PK in bits (LE)
-    signal input mac[256]; // MAC in bits (LE)
-    var encrypted_length = plaintext_length * 8 + 256 + 256;
-    signal input encrypted[encrypted_length]; // Encrypted part of the INTRODUCE1 cell in bits (LE)
-
-    component unpack[2];
-    component merkle_tree[2];
-    component iseq[2];
+    signal input encrypted[plaintext_length*8]; // Encrypted plaintext in bits
 
     // Transform the RVP's root (message before signing) to bits
     signal root_bits[256];
@@ -54,29 +46,35 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
 
     // Transform kp_hs_id into bits
     signal kp_bits[256];
-    unpack[0] = UnpackBytes(32);
-    unpack[0].bytes <== kp_hs_id;
-    kp_bits <== unpack[0].bits;
+    component unpack = UnpackBytes(32);
+    unpack.bytes <== kp_hs_id;
+    kp_bits <== unpack.bits;
 
     // Transform RVP Ed25519 key into bits
     signal rvp_key_bits[256];
-    unpack[1] = UnpackBytes(32);
-    unpack[1].bytes <== rvp_key;
-    rvp_key_bits <== unpack[1].bits;
+    component unpack_rvp = UnpackBytes(32);
+    unpack_rvp.bytes <== rvp_key;
+    rvp_key_bits <== unpack_rvp.bits;
 
     // Verify IP and RVP policy
-
-    merkle_tree[0] = CheckMerkleTree(ip_depth);
-    merkle_tree[0].root <== ip_root;
-    merkle_tree[0].kp_bits <== kp_bits;
-    merkle_tree[0].path <== ip_path;
-    merkle_tree[0].path_indexes <== ip_path_indexes;
+    component ip_mt = CheckMerkleTree(ip_depth);
+    ip_mt.root <== ip_root;
+    ip_mt.kp_bits <== kp_bits;
+    ip_mt.path <== ip_path;
+    ip_mt.path_indexes <== ip_path_indexes;
     
-    merkle_tree[1] = CheckMerkleTree(rvp_depth);
-    merkle_tree[1].root <== rvp_root;
-    merkle_tree[1].kp_bits <== kp_bits;
-    merkle_tree[1].path <== rvp_path;
-    merkle_tree[1].path_indexes <== rvp_path_indexes;
+    component rvp_mt = CheckMerkleTree(rvp_depth);
+    rvp_mt.root <== rvp_root;
+    rvp_mt.kp_bits <== kp_bits;
+    rvp_mt.path <== rvp_path;
+    rvp_mt.path_indexes <== rvp_path_indexes;
+
+    // Check that Ed25519 key in P[4][3] format corresponds to the representation in bits
+    component compress = PointCompress();
+    compress.P <== PointA;
+    component iseq = ForceEqualArrays(256);
+    iseq.array1 <== rvp_key_bits;
+    iseq.array2 <== compress.out;
 
     // Verify RVP's root signature with RVP key
     component verify = Ed25519Verifier(256);
@@ -90,13 +88,6 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
     // Check that is 1
     // Unnecessary? In case the linear constraint 1 === verify.out is removed with constraint simplification
     0 === (verify.out - 1)*(verify.out - 1);
-
-    // Check that Ed25519 key in P[4][3] format corresponds to the representation in bits
-    component compress = PointCompress();
-    compress.P <== PointA;
-    iseq[0] = ForceEqualArrays(256);
-    iseq[0].array1 <== rvp_key_bits;
-    iseq[0].array2 <== compress.out;
 
     // Check that the RVP key is inside the plaintext
     component check_key = CheckKeyIntroduce1(plaintext_length, start_key_byte);
@@ -113,15 +104,13 @@ template IP(ip_depth, rvp_depth, plaintext_length, start_key_byte){
     
     // Encrypt plaintext with key
     component cipher = EncryptIntroduce1(plaintext_length);
-    cipher.client_pk <== client_pk;
     cipher.plaintext <== plaintext;
-    cipher.mac <== mac;
     cipher.key <== key;
 
     // Check that the encrypted part of the INTRODUCE1 cell and the calculated encrypted plaintext are the same
-    iseq[1] = ForceEqualArrays(encrypted_length);
-    iseq[1].array1 <== encrypted;
-    iseq[1].array2 <== cipher.out;
+    component iseq_enc = ForceEqualArrays(plaintext_length*8);
+    iseq_enc.array1 <== encrypted;
+    iseq_enc.array2 <== cipher.out;
 }
 
 component main {public [ip_root, encrypted]} = IP(14, 14, 192, 26);

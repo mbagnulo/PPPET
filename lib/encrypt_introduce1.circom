@@ -6,43 +6,32 @@ include "hash_circuits/keccak/sha3_bytes.circom";
 include "utils.circom";
 
 /*
-Builds and encrypts INTRODUCE1 Encrypted field
-
-MAC: SHA3-256(k_len | k | m) --> 32 bytes
-The CLIENT_PK field is the public key X (Curve25519) --> 32 bytes.
-
-And sends, as the ENCRYPTED part of the INTRODUCE1 message:
+ENCRYPTED part of the INTRODUCE1 message:
     CLIENT_PK                [PK_PUBKEY_LEN bytes]
     ENCRYPTED_DATA           [Padded to length of plaintext]
     MAC                      [MAC_LEN bytes]
 
-Tor applies padding to the plaintext part of the Encrypted field.
-We assume that the input plaintext has already been padded
+Encrypts the plaintext, generating ENCRYPTED_DATA. The plaintext is the only part that is actually encrypted.
 
-An IV of all 0s is used for encryption
+We assume that the plaintext has already been padded to the appropiate length. 
+Tor C client requires that header length + plaintext length >= 246
+Additionally, Electron's Lab AES-256 implementation requires plaintext's length to be a multiple of 16.
+
+Tor uses an IV of all 0s for encryption
 */
 
 template EncryptIntroduce1(plaintext_length){
-    signal input client_pk[256]; // CLIENT_PK in bits (LE)
     signal input plaintext[plaintext_length]; // Plaintext in bytes
-    signal input mac[256]; // MAC in bits (LE)
-    signal input key[256]; // Encryption key in bits (LE)
+    signal input key[256]; // Encryption key in bits
+
+    var n_bits = plaintext_length * 8;
+    signal output out[n_bits];
 
     // Transform plaintext into bits
-    var bit_length = plaintext_length * 8;
-    signal plaintext_bits[bit_length];
-    component unpack = UnpackBytes(plaintext_length);
-    unpack.bytes <== plaintext;
-    plaintext_bits <== unpack.bits;
-
-    // Create encrypt input by joining the 3 fields (bits, LE)
-    var n_bits = 256 + bit_length + 256;
-    signal encrypt_input[n_bits];
-    component j3a = Join3Arrays(256, bit_length, 256);
-    j3a.array1 <== mac;
-    j3a.array2 <== plaintext_bits;
-    j3a.array3 <== client_pk;
-    encrypt_input <== j3a.out_array;
+    signal plaintext_bits[n_bits];
+    component b2b = BytesToBits(plaintext_length);
+    b2b.in <== plaintext;
+    plaintext_bits <== b2b.out;
 
     // Expand encryption key
     signal ks[1920];
@@ -51,11 +40,10 @@ template EncryptIntroduce1(plaintext_length){
     ks <== key_expand.w;
 
     // Encrypt all the bits
-    signal output out[n_bits];
     // Tor uses an IV of all 0s for this part
     signal iv[128] <== [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     component aes = AES256CTR(n_bits);
-    aes.in <== encrypt_input;
+    aes.in <== plaintext_bits;
     aes.ks <== ks;
     aes.ctr <== iv;
     out <== aes.out;

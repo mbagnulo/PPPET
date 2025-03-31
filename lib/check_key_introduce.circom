@@ -19,9 +19,6 @@ The plaintext has the structure:
     PAD
 
 Where ONION_KEY_TYPE is always 01 and ONION_KEY_LEN is 32 bytes
-
-We assume that the plaintext has already been padded to the appropiate length
-for encrypting with AES256
 */
 
 template RetrieveKeyIntroduce1(length, start_key_byte){
@@ -54,7 +51,6 @@ template CheckKeyIntroduce1(length, start_key_byte){
     component to_ed = CurveToEd();
     to_ed.curve_key <== rvp_key_text;
     to_ed.sign <== rvp_key[255]; // Sign is MSB of Ed25519 key
-
 
     // Check that ONION_KEY_TYPE is 1 ([1])
     component iseq1 = ForceEqual();
