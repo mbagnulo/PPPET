@@ -1,8 +1,6 @@
 pragma circom 2.0.0;
 
-//include "../lib/circomlib/comparators.circom";
 include "circomlib/comparators.circom";
-include "hash_circuits/keccak/keccak-p.circom";
 
 // Check if 2 numbers are equal. If not equal, asserts error
 template ForceEqual(){
@@ -14,37 +12,6 @@ template ForceEqual(){
 
     (1 - iseq.out) * (1 - iseq.out) === 0;
 }
-
-// Performs clamping to the blinding factor according to Ed25519 documentation
-template Clamping(){
-    signal input h[256]; // h is in little endian
-    signal output out[255];
-
-    component isz[3];
-    component iseq[251];
-
-    // Bits 1 (LSB), 2, 3 ==> 0 
-    for (var i = 0; i<3; i++){
-        isz[i] = IsZero();
-        out[i] <== 0;
-        isz[i].in <== out[i];
-        (isz[i].out - 1) * (isz[i].out - 1) === 0;
-    }
-
-    // Copy bits
-    var j = 0;
-    for (var i = 3; i < 254; i++){
-        iseq[j] = ForceEqual();
-        out[i] <== h[i];
-        iseq[j].in[0] <== h[i];
-        iseq[j].in[1] <== out[i];
-        j++;
-    }
-
-    // Bit 255 ==> 1
-    out[254] <== h[254] + 1 - h[254]*1; // OR 1
-}
-
 
 // Checks if 2 arrays are equal, results in error if not equal
 template ForceEqualArrays(size){
@@ -121,7 +88,6 @@ template Join3Arrays(size1, size2, size3){
     }
 }
 
-
 // Separate 2 arrays
 template Separate2Arrays(size1, size2){
     signal input in_array[size1 + size2];
@@ -163,4 +129,49 @@ template UnpackBytes_BE_to_LE(n) {
       tobits[j].out[i] ==> bits[ j*8 + i ];
     }
   }
+}
+
+// From https://github.com/pluto/aes-circuits/tree/main/circuits
+template BytesToBits(n_bytes) {
+    signal input in[n_bytes];
+    signal output out[n_bytes*8];
+    component num2bits[n_bytes];
+    for (var i = 0; i < n_bytes; i++) {
+        num2bits[i] = Num2Bits(8);
+        num2bits[i].in <== in[i];
+        for (var j = 7; j >=0; j--) {
+            out[i*8 + j] <== num2bits[i].out[7 -j];
+        }
+    }
+}
+
+template BitsToBytes(n) {
+    signal input in[n*8];
+    signal output out[n];
+    component bits2num[n];
+    for (var i = 0; i < n; i++) {
+        bits2num[i] = Bits2Num(8);
+        for (var j = 0; j < 8; j++) {
+            bits2num[i].in[7 - j] <== in[i*8 + j];
+        }
+        out[i] <== bits2num[i].out;
+    }
+}
+
+// Bytes BE --> Bits LE
+// e.g. [33, 15] --> 11110000 10000100
+template BytesToBitsLE(n_bytes){
+    signal input in[n_bytes];
+    signal output out[n_bytes*8];
+    component num2bits[n_bytes];
+
+    var k = n_bytes - 1;
+    for (var i = 0; i < n_bytes; i++) {
+        num2bits[i] = Num2Bits(8);
+        num2bits[i].in <== in[k];
+        for (var j = 0; j < 8; j++) {
+            out[i*8 + j] <== num2bits[i].out[j];
+        }
+        k -= 1;
+    }  
 }
