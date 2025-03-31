@@ -1,11 +1,7 @@
 pragma circom 2.0.0;
 
 include "hash_circuits/keccak/sha3_bytes.circom";
-include "ed25519_circom/binsub.circom";
-include "utils.circom";
-include "ed25519_circom/inversemodulo.circom";
 include "circomlib/bitify.circom";
-include "ed25519_circom/pointcompress.circom";
 include "ed25519_circom/chunkify.circom";
 include "ed25519_circom/chunkedsub.circom";
 include "ed25519_circom/chunkedadd.circom";
@@ -64,7 +60,6 @@ template KeyToBits(){
     fq.in[1] <== sign;
 }
 
-
 template CurveToEd(){
     signal input curve_key[32];
     signal input sign;
@@ -74,7 +69,7 @@ template CurveToEd(){
     // 1 in base 2^85
     signal one[3] <== [1, 0, 0];
 
-    // Curve25519 key --> Bits (LE)
+    // Curve25519 key --> Bits
     signal curve_bits[255];
     component unpack = UnpackBytes(32);
     unpack.bytes <== curve_key;
@@ -111,7 +106,7 @@ template CurveToEd(){
 
     // multiplicative inverse of (u+1)
     signal denominator_inv[3];
-    // again, unlike what name says actually uses base 2^85
+    // again, unlike what name says it actually uses base 2^85
     component inv = BigModInv51();
     inv.in <== denominator;
     denominator_inv <== inv.out;
@@ -125,7 +120,7 @@ template CurveToEd(){
     mod3.in <== mul.out;
     chunk_result <== mod3.out;
 
-    // Convert to bits (LE) & add sign
+    // Convert to bits & add sign
     component k2b = KeyToBits();
     k2b.chunk <== chunk_result;
     k2b.sign <== sign;
