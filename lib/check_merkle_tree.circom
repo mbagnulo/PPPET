@@ -33,10 +33,7 @@ template CheckMerkleTree(depth){
     signal out_root <== merkle_tree.root;
 
     // Check that the calculated root is the same as the input root
-    component a = ForceEqual();
-    a.in[0] <== root;
-    a.in[1] <== out_root;
+    component feq = ForceEqual();
+    feq.in[0] <== root;
+    feq.in[1] <== out_root;
 }
-
-
-// component main {public [root]} = CheckMerkleTree(2);
