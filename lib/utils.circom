@@ -113,8 +113,7 @@ template Separate2Arrays(size1, size2){
     }
 }
 
-// Takes a byte sequence in BE and transforms it to a LE bit sequence
-// Based on UnpackBytes() from hash_circuits
+/*
 template UnpackBytes_BE_to_LE(n) {
   signal input  bytes[n];
   signal output bits[8*n];
@@ -130,6 +129,7 @@ template UnpackBytes_BE_to_LE(n) {
     }
   }
 }
+*/
 
 // From https://github.com/pluto/aes-circuits/tree/main/circuits
 template BytesToBits(n_bytes) {
