@@ -138,13 +138,13 @@ template CheckBlindedKey(){
 
     // Find h = H("BLIND_STRING" | Kp_hs_id | ...) in bits
     component sha3 = SHA3_256_bytes(244);
-    component bytes2bits = BytesToBitsLE(32);
+    component unpack = UnpackBytes(32);
     sha3.inp_bytes <== preimage.out;
-    bytes2bits.in <== sha3.out_bytes;
+    unpack.bytes <== sha3.out_bytes;
 
     // Perform clamping on h
     component clamp = Clamping();
-    clamp.h <== bytes2bits.out;
+    clamp.h <== unpack.bits;
     
     // Perform scalar multiplication
     component scalarmul = ScalarMul();

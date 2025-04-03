@@ -157,21 +157,3 @@ template BitsToBytes(n) {
         out[i] <== bits2num[i].out;
     }
 }
-
-// Bytes BE --> Bits LE
-// e.g. [33, 15] --> 11110000 10000100
-template BytesToBitsLE(n_bytes){
-    signal input in[n_bytes];
-    signal output out[n_bytes*8];
-    component num2bits[n_bytes];
-
-    var k = n_bytes - 1;
-    for (var i = 0; i < n_bytes; i++) {
-        num2bits[i] = Num2Bits(8);
-        num2bits[i].in <== in[k];
-        for (var j = 0; j < 8; j++) {
-            out[i*8 + j] <== num2bits[i].out[j];
-        }
-        k -= 1;
-    }  
-}
