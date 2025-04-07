@@ -49,6 +49,7 @@ template XOR3_v2() {
 //------------------------------------------------------------------------------
 // decompose an n-bit number into bits
 
+/*
 template ToBits(n) {
   signal input  inp;
   signal output out[n];
@@ -62,7 +63,7 @@ template ToBits(n) {
 
   inp === sum;
 }
-
+*/
 //------------------------------------------------------------------------------
 // decompose a 33-bit number into the low 32 bits and the remaining 1 bit
 
