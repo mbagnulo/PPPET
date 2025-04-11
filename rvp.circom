@@ -5,11 +5,6 @@ include "lib/generate_rendesvouz_cookie.circom";
 include "lib/check_merkle_tree.circom";
 include "lib/utils.circom";
 
-//**************************************/
-include "lib/circomlib/poseidon.circom";
-include "lib/circomlib/bitify.circom";
-/***************************************/
-
 /* Circuit to verify RVP's policy
  - Prover: HS
  - Verifier: RVP
