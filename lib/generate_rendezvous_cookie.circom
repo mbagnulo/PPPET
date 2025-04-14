@@ -4,7 +4,7 @@ include "circomlib/poseidon.circom";
 include "circomlib/bitify.circom";
 include "utils_bytes.circom";
 
-// RENDESVOUZ_COOKIE = H(kp_hs_id | nonce | rvp_onion_key | time_period | period_length)
+// RENDESVOUZ_COOKIE = H(kp_hs_id | nonce | rvp_onion_key | time_period)
 // We use time period + onion key to make a proof only valid for a specific RVP and a specific time period
 // Onion key info: https://spec.torproject.org/tor-spec/relay-keys.html#circuit-extension-keys
 // Time period info: https://spec.torproject.org/rend-spec/deriving-keys.html#TIME-PERIODS
@@ -38,7 +38,6 @@ template GenRevCookie(){
     signal input nonce; // Nonce sent by client
     signal input rvp_onion_key[32]; // RVP Circuit Onion key
     signal input time_period;
-    signal input period_length;
 
     signal output out[20];
 
@@ -47,14 +46,13 @@ template GenRevCookie(){
     component k2n_2 = KeyToNum();
     k2n_2.in <== rvp_onion_key;
 
-    component poseidon = Poseidon(7);
+    component poseidon = Poseidon(6);
     poseidon.inputs[0] <== k2n_1.out[0];
     poseidon.inputs[1] <== k2n_1.out[1];
     poseidon.inputs[2] <== nonce;
     poseidon.inputs[3] <== k2n_2.out[0];
     poseidon.inputs[4] <== k2n_2.out[1];
     poseidon.inputs[5] <== time_period;
-    poseidon.inputs[6] <== period_length;
 
     // Truncate output to 20 bytes
     component n2b = Num2Bits(253);

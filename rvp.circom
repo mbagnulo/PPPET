@@ -1,7 +1,7 @@
 pragma circom 2.0.0;
 
 include "lib/sk-to-ed25519pk.circom";
-include "lib/generate_rendesvouz_cookie.circom";
+include "lib/generate_rendezvous_cookie.circom";
 include "lib/check_merkle_tree.circom";
 include "lib/utils.circom";
 
@@ -12,6 +12,11 @@ include "lib/utils.circom";
 Clients must compute the rendezvous cookie as follows: H(kp_hs_id | nonce | rvp_onion_key | time_period | period_length)
 Nonce provides randomness, the rest of the parameters make the proof valid only for a specific RVP and time period
 Client must provide the nonce to the HS through the INTRODUCE1's message
+
+Onion key and time period are passed as private inputs even if the RVP knows them to prevent a fraudulent HS with a valid proof
+from modifying them
+
+Since time period is passed as private input, both parties have to assume the same period length. We propose the default of 1440 minutes.
 */
 
 template RVP(rvp_depth){
@@ -19,7 +24,6 @@ template RVP(rvp_depth){
     signal input rvp_onion_key[32]; // RVP's circuit extension key, aka onion key
     signal input nonce;
     signal input time_period;
-    signal input period_length;
     signal input cookie[20];
 
     // Merkle Tree inputs
@@ -39,7 +43,6 @@ template RVP(rvp_depth){
     gen_cookie.nonce <== nonce;
     gen_cookie.rvp_onion_key <== rvp_onion_key;
     gen_cookie.time_period <== time_period;
-    gen_cookie.period_length <== period_length;
 
     component feq = ForceEqualArrays(20);
     feq.array1 <== cookie;
@@ -56,4 +59,4 @@ template RVP(rvp_depth){
     mt.path_indexes <== rvp_path_indexes;
 }
 
-component main {public [rvp_root, cookie, rvp_onion_key, time_period, period_length]}= RVP(14);
+component main {public [rvp_root, cookie]}= RVP(14);
