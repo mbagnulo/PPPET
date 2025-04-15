@@ -69,4 +69,4 @@ template IP_ZKF(ip_depth, plaintext_length){
     }
 }
 
-component main {public [ip_root]} = IP_ZKF(14, 192);
+component main {public [ip_root, encrypted]} = IP_ZKF(14, 192);
