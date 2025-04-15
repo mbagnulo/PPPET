@@ -42,7 +42,7 @@ template GenRevCookie(){
     poseidon.inputs[2] <== nonce;
 
     // Truncate output to 20 bytes
-    component n2b = Num2Bits(253);
+    component n2b = Num2Bits_strict();
     n2b.in <== poseidon.out;
 
     component pack = PackBytes(20);
