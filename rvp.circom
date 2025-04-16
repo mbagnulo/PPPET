@@ -14,23 +14,30 @@ Nonce provides randomness, the rest of the parameters make the proof valid only 
 Client must provide the nonce to the HS through the INTRODUCE1's message
 */
 
-template RVP(rvp_depth){
+template RVP(depth){
     signal input ks_hs_id[32]; // Only the first 32 bytes of the 64 bytes expanded format
     signal input nonce;
     signal input cookie[20];
 
     // Merkle Tree inputs
-    signal input rvp_root;
-    signal input rvp_path[rvp_depth];
-    signal input rvp_path_indexes[rvp_depth];
+    signal input root;
+    signal input path[depth];
+    signal input path_indexes[depth];
 
-    // 1. Compute kp_hs_id from ks_hs_id
+    // Compute kp_hs_id from ks_hs_id
     signal kp_hs_id[32];
     component gen_kp = SkToPkEd();
     gen_kp.in <== ks_hs_id;
     kp_hs_id <== gen_kp.out;
+
+    // Check that kp_hs_id is in RVP policy
+    component mt = CheckMerkleTree(depth);
+    mt.root <== root;
+    mt.key <== kp_hs_id;
+    mt.path <== path;
+    mt.path_indexes <== path_indexes;
     
-    // 2. Compute RENDEZVOUS_COOKIE and compare with public input
+    // Compute RENDEZVOUS_COOKIE and compare with public input
     component gen_cookie = GenRevCookie();
     gen_cookie.kp_hs_id <== kp_hs_id;
     gen_cookie.nonce <== nonce;
@@ -38,16 +45,6 @@ template RVP(rvp_depth){
     component feq = ForceEqualArrays(20);
     feq.array1 <== cookie;
     feq.array2 <== gen_cookie.out;
-
-    // 3. Verify RVP's policy
-    component unpack = UnpackBytes(32);
-    unpack.bytes <== kp_hs_id;
-
-    component mt = CheckMerkleTree(rvp_depth);
-    mt.root <== rvp_root;
-    mt.kp_bits <== unpack.bits;
-    mt.path <== rvp_path;
-    mt.path_indexes <== rvp_path_indexes;
 }
 
-component main {public [rvp_root, cookie]}= RVP(14);
+component main {public [root, cookie]}= RVP(14);
