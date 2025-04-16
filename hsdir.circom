@@ -2,6 +2,7 @@ pragma circom 2.0.0;
 
 include "lib/check_blinded_key.circom";
 include "lib/check_merkle_tree.circom";
+include "lib/utils.circom";
 
 template HSDir(depth){
     signal input kp_hs_id[32]; // kp_hs_id in bytes
@@ -23,12 +24,16 @@ template HSDir(depth){
     mt.path_indexes <== path_indexes;
 
     // Compute blinded key and compare with public input
-    component check_bkey = CheckBlindedKey();
-    check_bkey.kp_hs_id <== kp_hs_id;
-    check_bkey.kp_base_85 <== kp_base_85;
-    check_bkey.blinded_key <== blinded_key;
-    check_bkey.period_number <== period_number;
-    check_bkey.period_length <== period_length;    
+    component gen_bkey = GenerateBlindedKey();
+    gen_bkey.kp_hs_id <== kp_hs_id;
+    gen_bkey.kp_base_85 <== kp_base_85;
+    gen_bkey.blinded_key <== blinded_key;
+    gen_bkey.period_number <== period_number;
+    gen_bkey.period_length <== period_length;
+
+    component feq = ForceEqualArrays(32);
+    feq.array1 <== blinded_key;
+    feq.array2 <== gen_bkey.out;    
 }
 
 component main {public [root, blinded_key, period_number, period_length]} = HSDir(14);

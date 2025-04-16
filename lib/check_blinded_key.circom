@@ -114,12 +114,14 @@ template CreateBKHashInput(){
     }
 }
 
-template CheckBlindedKey(){
+template GenerateBlindedKey(){
     signal input kp_hs_id[32];
     signal input kp_base_85[4][3];
     signal input blinded_key[32];
     signal input period_number[8];
     signal input period_length[8];
+
+    signal output out[32];
     
     // Check that kp_hs_id === kp_base_85
     component compress_1 = PointCompress();
@@ -156,10 +158,6 @@ template CheckBlindedKey(){
     component pack_2 = PackBytes(32);
     compress_2.P <== scalarmul.sP;
     pack_2.bits <== compress_2.out;
-    
-    // Compare input blinded key to the one we've just calculated
-    // Generates an error if they are not equal
-    component iseq_2 = ForceEqualArrays(32);
-    iseq_2.array1 <== blinded_key;
-    iseq_2.array2 <== pack_2.bytes;
+
+    out <== pack_2.bytes;
 }
