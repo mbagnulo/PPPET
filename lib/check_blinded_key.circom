@@ -60,7 +60,7 @@ template CreateBKHashInput(){
     //"Derive temporary signing key\0" encoded with ASCII
     var BLIND_STRING[29] = [68, 101, 114, 105, 118, 101, 32, 116, 101, 109, 112, 111, 114, 97, 114, 121, 32, 115, 105, 103, 110, 105, 110, 103, 32, 107, 101, 121, 0];
     //"(1511...2202, 4631...5960)" encoded with ASCII
-    var ED22519_BASEPOINT[158] = [40, 49, 53, 49, 49, 50, 50, 50, 49, 51, 52, 57, 53, 51, 53, 52, 48, 48, 55, 55, 50, 53, 48, 49, 49, 53, 49, 52, 48, 57, 53, 56, 56, 53, 51, 49, 53, 49, 49, 52, 53, 52, 48, 49, 50, 54, 57, 51, 48, 52, 49, 56, 53, 55, 50, 48, 54, 48, 52, 54, 49, 49, 51, 50, 56, 51, 57, 52, 57, 56, 52, 55, 55, 54, 50, 50, 48, 50, 44, 32, 52, 54, 51, 49, 54, 56, 51, 53, 54, 57, 52, 57, 50, 54, 52, 55, 56, 49, 54, 57, 52, 50, 56, 51, 57, 52, 48, 48, 51, 52, 55, 53, 49, 54, 51, 49, 52, 49, 51, 48, 55, 57, 57, 51, 56, 54, 54, 50, 53, 54, 50, 50, 53, 54, 49, 53, 55, 56, 51, 48, 51, 51, 54, 48, 51, 49, 54, 53, 50, 53, 49, 56, 53, 53, 57, 54, 48, 41];
+    var ED25519_BASEPOINT[158] = [40, 49, 53, 49, 49, 50, 50, 50, 49, 51, 52, 57, 53, 51, 53, 52, 48, 48, 55, 55, 50, 53, 48, 49, 49, 53, 49, 52, 48, 57, 53, 56, 56, 53, 51, 49, 53, 49, 49, 52, 53, 52, 48, 49, 50, 54, 57, 51, 48, 52, 49, 56, 53, 55, 50, 48, 54, 48, 52, 54, 49, 49, 51, 50, 56, 51, 57, 52, 57, 56, 52, 55, 55, 54, 50, 50, 48, 50, 44, 32, 52, 54, 51, 49, 54, 56, 51, 53, 54, 57, 52, 57, 50, 54, 52, 55, 56, 49, 54, 57, 52, 50, 56, 51, 57, 52, 48, 48, 51, 52, 55, 53, 49, 54, 51, 49, 52, 49, 51, 48, 55, 57, 57, 51, 56, 54, 54, 50, 53, 54, 50, 50, 53, 54, 49, 53, 55, 56, 51, 48, 51, 51, 54, 48, 51, 49, 54, 53, 50, 53, 49, 56, 53, 53, 57, 54, 48, 41];
     //"key-blind" encoded with ASCII
     var KEYBLIND_STRING[9] = [107, 101, 121, 45, 98, 108, 105, 110, 100];
 
@@ -69,49 +69,15 @@ template CreateBKHashInput(){
     component iseq[29 + 32 + 158 + 9 + 8 + 8];
 
     // Join arrays + enforce equality with quadratic constraint
-    var j = 0;
-    for(var i = 0; i < 29; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== BLIND_STRING[i];
-        iseq[j].in[0] <== BLIND_STRING[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
-    for(var i = 0; i < 32; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== kp_hs_id[i];
-        iseq[j].in[0] <== kp_hs_id[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
-    for(var i = 0; i < 158; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== ED22519_BASEPOINT[i];
-        iseq[j].in[0] <== ED22519_BASEPOINT[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
-    for(var i = 0; i < 9; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== KEYBLIND_STRING[i];
-        iseq[j].in[0] <== KEYBLIND_STRING[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
-    for(var i = 0; i < 8; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== period_number[i];
-        iseq[j].in[0] <== period_number[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
-    for(var i = 0; i < 8; i++){
-        iseq[j] = ForceEqual();
-        out[j] <== period_length[i];
-        iseq[j].in[0] <== period_length[i];
-        iseq[j].in[1] <== out[j];
-        j++;
-    }
+    component j6a = Join6Arrays(29, 32, 158, 9, 8, 8);
+    j6a.array1 <== BLIND_STRING;
+    j6a.array2 <== kp_hs_id;
+    j6a.array3 <== ED25519_BASEPOINT;
+    j6a.array4 <== KEYBLIND_STRING;
+    j6a.array5 <== period_number;
+    j6a.array6 <== period_length;
+
+    out <== j6a.out_array;
 }
 
 template GenerateBlindedKey(){
