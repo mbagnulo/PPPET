@@ -5,8 +5,7 @@ include "./scalarmulbase.circom";
 include "./modulus.circom";
 include "./point-addition.circom";
 include "./pointcompress.circom";
-
-include "../sha512/sha512.circom";
+include "../sha512/sha512.circom"; // Not included in repository, add if necessary
 include "../circomlib/comparators.circom";
 include "../circomlib/gates.circom";
 
