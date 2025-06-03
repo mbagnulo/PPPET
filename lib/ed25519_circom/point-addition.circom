@@ -22,6 +22,133 @@ include "chunkedadd.circom";
 include "modulus.circom";
 
 
+// Optimized version, approximately reduces the constraints in half
+// The number of constraints in field operations depend on the input size, specially the Modulus
+// Turns out performing mod P after every operation is cheaper than only doing it at the end as the final input is much larger
+
+template PointAdd(){
+
+    //Points are represented as tuples (X, Y, Z, T) of extended coordinates, with x = X/Z, y = Y/Z, x*y = T/Z
+
+    var constant_neg_d[3] = [36453506357546404448470858,34096743896386538864219637,13898602798132607198219823];
+    var constant_d[3] = [2232119870121729142126755,4588882331281594726377994,24787023429535526392377808];
+    var i;
+    var base=85;
+
+    signal input P[4][3];
+    signal input Q[4][3];
+    signal output R[4][3];
+
+    component X1X2 = ChunkedMul(3, 3, base);
+    component Y1Y2 = ChunkedMul(3, 3, base);
+    component X1Y2 = ChunkedMul(3, 3, base);
+    component X2Y1 = ChunkedMul(3, 3, base);
+    component T1T2 = ChunkedMul(3, 3, base);
+    component Z1Z2 = ChunkedMul(3, 3, base);
+
+    X1X2.in1 <== P[0]; // x1
+    X1X2.in2 <== Q[0]; // x2
+
+    Y1Y2.in1 <== P[1]; // y1
+    Y1Y2.in2 <== Q[1]; // y2
+
+    X1Y2.in1 <== P[0]; // x1
+    X1Y2.in2 <== Q[1]; // y2
+
+    X2Y1.in1 <== Q[0]; // x2
+    X2Y1.in2 <== P[1]; // y1
+
+    T1T2.in1 <== P[3]; // t1
+    T1T2.in2 <== Q[3]; // t2
+
+    Z1Z2.in1 <== P[2]; // z1
+    Z1Z2.in2 <== Q[2]; // z2
+
+    component X1X2_mod = ModulusWith25519Chunked51(6);
+    X1X2_mod.in <== X1X2.out;
+    component Y1Y2_mod = ModulusWith25519Chunked51(6);
+    Y1Y2_mod.in <== Y1Y2.out;
+    component X1Y2_mod = ModulusWith25519Chunked51(6);
+    X1Y2_mod.in <== X1Y2.out;
+    component X2Y1_mod = ModulusWith25519Chunked51(6);
+    X2Y1_mod.in <== X2Y1.out;
+    component T1T2_mod = ModulusWith25519Chunked51(6);
+    T1T2_mod.in <== T1T2.out;
+    component Z1Z2_mod = ModulusWith25519Chunked51(6);
+    Z1Z2_mod.in <== Z1Z2.out;
+
+    component T1T2d = ChunkedMul(3, 3, base);
+    component T1T2neg_d = ChunkedMul(3, 3, base);
+
+    T1T2d.in1 <== T1T2_mod.out;
+    T1T2d.in2 <== constant_d;
+
+    T1T2neg_d.in1 <== T1T2_mod.out;
+    T1T2neg_d.in2 <== constant_neg_d;
+
+    component T1T2d_mod = ModulusWith25519Chunked51(6);
+    T1T2d_mod.in <== T1T2d.out;
+    component T1T2neg_d_mod = ModulusWith25519Chunked51(6);
+    T1T2neg_d_mod.in <== T1T2neg_d.out;
+
+    
+    component e_add = ChunkedAdd(3,2,base);
+    component f_add = ChunkedAdd(3,2,base);
+    component g_add = ChunkedAdd(3,2,base);
+    component h_add = ChunkedAdd(3,2,base);
+
+    e_add.in[0] <== X1Y2_mod.out;
+    e_add.in[1] <== X2Y1_mod.out;
+    f_add.in[0] <== T1T2neg_d_mod.out;
+    f_add.in[1] <== Z1Z2_mod.out;
+    g_add.in[0] <== T1T2d_mod.out;
+    g_add.in[1] <== Z1Z2_mod.out;
+    h_add.in[0] <== X1X2_mod.out;
+    h_add.in[1] <== Y1Y2_mod.out;
+
+    component e_mod = ModulusWith25519Chunked51(4);
+    e_mod.in <== e_add.out;
+    component f_mod = ModulusWith25519Chunked51(4);
+    f_mod.in <== f_add.out;
+    component g_mod = ModulusWith25519Chunked51(4);
+    g_mod.in <== g_add.out;
+    component h_mod = ModulusWith25519Chunked51(4);
+    h_mod.in <== h_add.out;
+
+    
+    component fe = ChunkedMul(3, 3, base);
+    component gh = ChunkedMul(3, 3, base);
+    component fg = ChunkedMul(3, 3, base);
+    component eh = ChunkedMul(3, 3, base);
+
+    fe.in1 <== f_mod.out;
+    fe.in2 <== e_mod.out;
+
+    gh.in1 <== g_mod.out;
+    gh.in2 <== h_mod.out;
+
+    fg.in1 <== f_mod.out;
+    fg.in2 <== g_mod.out;
+
+    eh.in1 <== e_mod.out;
+    eh.in2 <== h_mod.out;
+    
+    component fe_mod = ModulusWith25519Chunked51(6);
+    fe_mod.in <== fe.out;
+    component gh_mod = ModulusWith25519Chunked51(6);
+    gh_mod.in <== gh.out;
+    component fg_mod = ModulusWith25519Chunked51(6);
+    fg_mod.in <== fg.out;
+    component eh_mod = ModulusWith25519Chunked51(6);
+    eh_mod.in <== eh.out;
+    
+    R[0] <== fe_mod.out;
+    R[1] <== gh_mod.out;
+    R[2] <== fg_mod.out;
+    R[3] <== eh_mod.out;
+}
+
+/*
 template PointAdd(){
 
     //Points are represented as tuples (X, Y, Z, T) of extended coordinates, with x = X/Z, y = Y/Z, x*y = T/Z
@@ -43,59 +170,37 @@ template PointAdd(){
     component Z_1Z_2 = ChunkedMul(3, 3, base);
 
     for(i=0;i<3;i++){
-        X_1X_2.in1[i] <== P[0][i];
-        X_1X_2.in2[i] <== Q[0][i];
+        X_1X_2.in1[i] <== P[0][i]; // x1
+        X_1X_2.in2[i] <== Q[0][i]; // x2
 
-        Y_1Y_2.in1[i] <== P[1][i];
-        Y_1Y_2.in2[i] <== Q[1][i];
+        Y_1Y_2.in1[i] <== P[1][i]; // y1
+        Y_1Y_2.in2[i] <== Q[1][i]; // y2
         
-        X_1Y_2.in1[i] <== P[0][i];
-        X_1Y_2.in2[i] <== Q[1][i];
+        X_1Y_2.in1[i] <== P[0][i]; // x1
+        X_1Y_2.in2[i] <== Q[1][i]; // y2
         
-        X_2Y_1.in1[i] <== P[1][i];
-        X_2Y_1.in2[i] <== Q[0][i];
+        X_2Y_1.in1[i] <== P[1][i]; // y1
+        X_2Y_1.in2[i] <== Q[0][i]; // x2
 
-        T_1T_2.in1[i] <== P[3][i];
-        T_1T_2.in2[i] <== Q[3][i];
+        T_1T_2.in1[i] <== P[3][i]; // t1
+        T_1T_2.in2[i] <== Q[3][i]; // t2
 
-        Z_1Z_2.in1[i] <== P[2][i];
-        Z_1Z_2.in2[i] <== Q[2][i];
+        Z_1Z_2.in1[i] <== P[2][i]; // z1
+        Z_1Z_2.in2[i] <== Q[2][i]; // z2
     }
 
     component T_1T_2_d = ChunkedMul(6, 3, base);
     component T_1T_2_neg_d = ChunkedMul(6, 3, base);
 
     for(i=0;i<2*3;i++){
-       T_1T_2_d.in1[i] <== T_1T_2.out[i];
-       T_1T_2_neg_d.in1[i] <== T_1T_2.out[i];
+       T_1T_2_d.in1[i] <== T_1T_2.out[i]; // t1 * t2
+       T_1T_2_neg_d.in1[i] <== T_1T_2.out[i]; // t1 * t2
     }
 
     for(i=0;i<3;i++){
         T_1T_2_d.in2[i] <== constant_d[i];
         T_1T_2_neg_d.in2[i] <== constant_neg_d[i];
     }
-    // component mod_X_1X_2 = ModulusWith25519Chunked51(2*5);
-    // component mod_Y_1Y_2 = ModulusWith25519Chunked51(2*5);
-    // component mod_X_1Y_2 = ModulusWith25519Chunked51(2*5);
-    // component mod_X_2Y_1 = ModulusWith25519Chunked51(2*5);
-    // component mod_Z_1Z_2 = ModulusWith25519Chunked51(2*5);
-
-    // for(i=0;i<2*5;i++){
-    //     mod_X_1X_2.a[i] <== X_1X_2.out[i];
-    //     mod_Y_1Y_2.a[i] <== Y_1Y_2.out[i];
-    //     mod_X_1Y_2.a[i] <== X_1Y_2.out[i];
-    //     mod_X_2Y_1.a[i] <== X_2Y_1.out[i];
-    //     mod_Z_1Z_2.a[i] <== Z_1Z_2.out[i];
-    // }
-
-
-    // component mod_T_1T_2_d = ModulusWith25519Chunked51(2*5+5);
-    // component mod_T_1T_2_neg_d = ModulusWith25519Chunked51(2*5+5);
-
-    // for(i=0;i<2*5+5;i++){
-    //     mod_T_1T_2_d.a[i] <== T_1T_2_d.out[i];
-    //     mod_T_1T_2_neg_d.a[i] <== T_1T_2_neg_d.out[i];
-    // }
 
     component e_add = ChunkedAdd(6,2,base);
     component f_add = ChunkedAdderIrregular(9,6,base);
@@ -162,6 +267,7 @@ template PointAdd(){
 
     
 }
+*/
 
 template DoublePt(){
     signal input P[4][3];

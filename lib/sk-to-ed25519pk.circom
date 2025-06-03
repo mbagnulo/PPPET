@@ -1,6 +1,6 @@
 pragma circom 2.0.0;
 
-include "ed25519_circom/scalarmul.circom";
+include "ed25519_circom/scalarmulbase.circom";
 include "ed25519_circom/pointcompress.circom";
 include "utils_bytes.circom";
  
@@ -21,14 +21,7 @@ template SkToPkEd(){
     component up = UnpackBytes(32);
     up.bytes <== in;
 
-    // Base point
-    var G[4][3] = [[6836562328990639286768922, 21231440843933962135602345, 10097852978535018773096760],
-                    [7737125245533626718119512, 23211375736600880154358579, 30948500982134506872478105],
-                    [1, 0, 0],
-                    [20943500354259764865654179, 24722277920680796426601402, 31289658119428895172835987]
-                  ];
-
-    component scalarmul = ScalarMul();
+    component scalarmul = ScalarMulBase();
     // Apply clamping:
 
     // 1. Clear first 3 bits
@@ -41,7 +34,6 @@ template SkToPkEd(){
     }
     // 3. Bit 255 OR 1, we discard bit 256
     scalarmul.s[254] <== up.bits[254] + 1 - up.bits[254] * 1;
-    scalarmul.P <== G;
 
     component compress = PointCompress();
     component pack = PackBytes(32);

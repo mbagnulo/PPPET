@@ -310,6 +310,12 @@ template multred(a,b){
   }
   component reduce;
   reduce = ModulusWith25519(a+b);
+
+  /*
+  reduce.in <== prod.out;
+  out <== reduce.out;
+  /******/
+
   for(i=0;i<a+b;i++){
     reduce.a[i] <== prod.out[i];
   }

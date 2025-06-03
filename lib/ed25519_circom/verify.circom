@@ -1,6 +1,7 @@
 pragma circom 2.0.0;
 
 include "./scalarmul.circom";
+include "./scalarmulbase.circom";
 include "./modulus.circom";
 include "./point-addition.circom";
 include "./pointcompress.circom";
@@ -22,12 +23,6 @@ template Ed25519Verifier(n) {
   signal input PointR[4][3];
 
   signal output out;
-
-  var G[4][3] = [[6836562328990639286768922, 21231440843933962135602345, 10097852978535018773096760],
-                 [7737125245533626718119512, 23211375736600880154358579, 30948500982134506872478105],
-                 [1, 0, 0],
-                 [20943500354259764865654179, 24722277920680796426601402, 31289658119428895172835987]
-                ];
 
   var i;
   var j;
@@ -67,14 +62,9 @@ template Ed25519Verifier(n) {
   }
 
   // point multiplication s, G
-  component pMul1 = ScalarMul();
+  component pMul1 = ScalarMulBase();
   for(i=0; i<255; i++) {
     pMul1.s[i] <== S[i];
-  }
-  for (i=0; i<4; i++) {
-    for (j=0; j<3; j++) {
-      pMul1.P[i][j] <== G[i][j];
-    }
   }
 
   // point multiplication h, A
