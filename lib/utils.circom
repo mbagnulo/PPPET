@@ -1,6 +1,38 @@
 pragma circom 2.0.0;
 
 include "circomlib/comparators.circom";
+include "circomlib/bitify.circom";
+
+// Checks if all elements in an array of bytes are in the range 0 - 255
+// Done by checking if each element can be represented in 8 bits via n2b
+// If element is 256 or more, n2b constraints give error
+template CheckRangeBytes(size){
+    signal input in[size];
+    var N_BITS = 8;
+    
+    component n2b[size];
+
+    for (var i = 0; i < size; i++){
+        n2b[i] = Num2Bits(N_BITS);
+        n2b[i].in <== in[i];
+    }
+}
+
+// For the canonical representation of Ed25519 keys, each coordinate is represented in 2^85 limbs
+// Verifies that all limbs are 85 bits 
+template CheckRangeKeyBase85(){
+    signal input in[4][3];
+    var z = 0;
+    component n2b[12];
+
+    for(var i = 0; i < 4; i++){
+        for (var j = 0; j < 3; j++){
+            n2b[z] = Num2Bits(85);
+            n2b[z].in <== in[i][j];
+            z++;
+        }
+    }
+}
 
 // Check if 2 numbers are equal. If not equal, asserts error
 template ForceEqual(){
@@ -25,6 +57,54 @@ template ForceEqualArrays(size){
         iseq[i].in[0] <== array1[i];
         iseq[i].in[1] <== array2[i];
     }
+}
+
+// Transforms 32 bytes key into 2 integers that can be hashed with Poseidon
+// Used for computing POLICY_COOKIE and RENDEZVOUS_COOKIE
+// Since we are working in BN128, we can't directly hash with Poseidon a 32 byte number (e.g., kp_hs_id) 
+template KeyToNum(){
+    signal input in[32];
+    signal output out[2]; // out[0] = lo, out[1] = hi
+
+    component up = UnpackBytes(32);
+    up.bytes <== in;
+
+    component b2n[2];
+    b2n[0] = Bits2Num(128);
+    b2n[1] = Bits2Num(128);
+
+    for(var i = 0; i < 128; i++){
+        b2n[0].in[i] <== up.bits[i];
+        b2n[1].in[i] <== up.bits[i+128];
+    }
+
+    out[0] <== b2n[0].out;
+    out[1] <== b2n[1].out;
+}
+
+// a < b for 256-bit numbers given as [lo, hi] limbs (same order as KeyToNum).
+// Returns 1 if a < b
+// Requires every limb to be < 2^128, range-checked by the caller.
+template LessThan256() {
+    signal input a[2];   // a[0] = lo, a[1] = hi
+    signal input b[2];
+    signal output out;
+
+    component ltHi = LessThan(128);
+    ltHi.in[0] <== a[1];
+    ltHi.in[1] <== b[1];
+
+    component eqHi = IsEqual();
+    eqHi.in[0] <== a[1];
+    eqHi.in[1] <== b[1];
+
+    component ltLo = LessThan(128);
+    ltLo.in[0] <== a[0];
+    ltLo.in[1] <== b[0];
+
+    signal t;
+    t <== eqHi.out * ltLo.out;
+    out <== ltHi.out + t;   // cases are mutually exclusive, so 0 or 1
 }
 
 template Join2Arrays(size1, size2){

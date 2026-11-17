@@ -83,7 +83,6 @@ template CreateBKHashInput(){
 template GenerateBlindedKey(){
     signal input kp_hs_id[32];
     signal input kp_base_85[4][3];
-    signal input blinded_key[32];
     signal input period_number[8];
     signal input period_length[8];
 
