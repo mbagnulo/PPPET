@@ -53,6 +53,9 @@ template RVP(depth){
     range_check[2].in <== low_key;
     range_check[3].in <== high_key;
 
+    component n2b = Num2Bits(160);
+    n2b.in <== rvp_id_fingerprint;
+
     0 === is_blocklist * (1 - is_blocklist);
 
     // 2. Compute kp_hs_id from ks_hs_id
